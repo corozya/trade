@@ -3450,12 +3450,12 @@ def market_movers(limit: int = 20) -> dict[str, Any]:
 # Autonomous BTC trader (OKX Demo only)
 # ---------------------------------------------------------------------------
 
-_AUTOTRADER_DIR = LAKE_ROOT / "autotrader-btc-demo"
+_AUTOTRADER_DIR = RUNTIME_ROOT / "autotrader-btc-demo"
 _AUTOTRADER_SPEC_URI = (
     "obsidian://open?vault=OBSIDIAN_BAZA_WIEDZY&file="
     "Projekty%2FBOT%2FAgent-BTC-Autonomiczny"
 )
-_SHARED_EXECUTION_LOCK = Path(__file__).resolve().parent.parent.parent / "scripts" / ".agent_krypto_cycle.lock"
+_SHARED_EXECUTION_LOCK = RUNTIME_ROOT / "locks" / "agent_krypto_cycle.lock"
 
 
 @contextmanager

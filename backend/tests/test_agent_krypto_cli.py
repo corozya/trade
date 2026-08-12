@@ -11,6 +11,16 @@ import agent_krypto_cli
 from services.agent_krypto_run_store import RunStore
 
 
+def test_default_storage_paths_stay_inside_split_repository():
+    repo_root = agent_krypto_cli._REPO_ROOT
+    assert agent_krypto_cli.DEFAULT_DATA_ROOT == str(repo_root / "data" / "lake")
+    assert agent_krypto_cli.DEFAULT_RUNTIME_ROOT == repo_root / "data" / "runtime"
+    assert agent_krypto_cli.DEFAULT_RUN_DB == str(
+        repo_root / "data" / "runtime" / "runs" / "orchestrator_runs.db"
+    )
+    assert "research/agent-krypto" not in agent_krypto_cli.DEFAULT_RUN_DB
+
+
 def _write_config(path, **overrides):
     payload = {
         "config_version": "v1",

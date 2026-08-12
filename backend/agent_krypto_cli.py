@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
@@ -107,12 +108,22 @@ from services.paper_execution import derive_point_in_time_decisions, record_rese
 # — those catalogs live at <repo_root>/config/, not under backend/.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_RUN_DB = "research/agent-krypto/runs/orchestrator_runs.db"
-DEFAULT_ARTIFACT_REGISTRY_DB = "research/agent-krypto/artifacts/registry.db"
+DEFAULT_DATA_ROOT = str(
+    Path(os.environ.get("CRYPTO_LAKE_ROOT", _REPO_ROOT / "data" / "lake")).expanduser()
+)
+DEFAULT_RUNTIME_ROOT = Path(
+    os.environ.get("CRYPTO_RUNTIME_ROOT", _REPO_ROOT / "data" / "runtime")
+).expanduser()
+DEFAULT_RUN_DB = str(DEFAULT_RUNTIME_ROOT / "runs" / "orchestrator_runs.db")
+DEFAULT_ARTIFACT_REGISTRY_DB = str(DEFAULT_RUNTIME_ROOT / "artifacts" / "registry.db")
 DEFAULT_CONFIG_PATH = "config/agent_krypto_orchestrator_config.json"
-DEFAULT_CANDIDATE_CURSOR_DB = "research/agent-krypto/candidate_cursor.db"
-DEFAULT_INSIGHT_REPORTS_DB = "research/agent-krypto/insight_reports.db"
-DEFAULT_CHAMPION_REGISTRY_DB = "research/agent-krypto/champion_registry.db"
+DEFAULT_CANDIDATE_CURSOR_DB = str(DEFAULT_RUNTIME_ROOT / "candidate_cursor.db")
+DEFAULT_INSIGHT_REPORTS_DB = str(DEFAULT_RUNTIME_ROOT / "insight_reports.db")
+DEFAULT_CHAMPION_REGISTRY_DB = str(DEFAULT_RUNTIME_ROOT / "champion_registry.db")
+DEFAULT_HOLDOUT_CLAIMS_DB = str(DEFAULT_RUNTIME_ROOT / "holdout_claims.db")
+DEFAULT_EXPERIMENT_OUTPUT_ROOT = str(DEFAULT_RUNTIME_ROOT / "experiments")
+DEFAULT_MLFLOW_TRACKING_URI = f"sqlite:///{DEFAULT_RUNTIME_ROOT / 'mlruns.db'}"
+DEFAULT_RAG_PATH = str(DEFAULT_RUNTIME_ROOT / "rag")
 
 # LearningRequest features are only ever dispatched through FeatureDatasetStore
 # (content-addressed, versioned) — the ToolRequest catalog/gate is a distinct
@@ -155,7 +166,7 @@ def _handle_ingest(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict[s
     incomplete or stale for its ``as_of``/``max_age`` window is fail-closed
     here: ``require_ready_dataset`` raises rather than letting an unusable
     dataset silently report DONE."""
-    lake = CryptoDataLake(root=args.get("data_root", "research/agent-krypto"))
+    lake = CryptoDataLake(root=args.get("data_root") or DEFAULT_DATA_ROOT)
     required_symbols = tuple(
         str(value) for value in (args.get("required_symbols") or SYMBOLS)
     )
@@ -225,7 +236,7 @@ def _handle_request(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict[
             _LEARNING_SYMBOLS.get(symbol, symbol) for symbol in request["symbols"]
         ]
         store = FeatureDatasetStore(
-            root=args.get("data_root", "research/agent-krypto"),
+            root=args.get("data_root") or DEFAULT_DATA_ROOT,
             feature_catalog_path=args.get(
                 "feature_catalog_path", "config/agent_krypto_feature_catalog.json"
             ),
@@ -288,17 +299,17 @@ def _handle_experiment(args: Mapping[str, Any], config: Mapping[str, Any]) -> di
     """Run one purged walk-forward trial via the #103 ExperimentRunner."""
     payload = _load_json_file(args["experiment_config_file"])
     experiment_config = ExperimentConfig(**payload)
-    lake = CryptoDataLake(root=args.get("data_root", "research/agent-krypto"))
+    lake = CryptoDataLake(root=args.get("data_root") or DEFAULT_DATA_ROOT)
     runner = ExperimentRunner(
         lake,
-        feature_root=args.get("data_root", "research/agent-krypto"),
-        output_root=args.get("experiment_output_root", "research/agent-krypto/experiments"),
+        feature_root=args.get("data_root") or DEFAULT_DATA_ROOT,
+        output_root=args.get("experiment_output_root") or DEFAULT_EXPERIMENT_OUTPUT_ROOT,
         experiment_sink=MlflowExperimentRegistry(
-            args.get("mlflow_tracking_uri", "sqlite:///research/agent-krypto/mlruns.db"),
+            args.get("mlflow_tracking_uri") or DEFAULT_MLFLOW_TRACKING_URI,
             "agent-krypto-research",
         ),
         research_notes=ChromaResearchNotes(
-            args.get("rag_path", "research/agent-krypto/rag")
+            args.get("rag_path") or DEFAULT_RAG_PATH
         ),
         tool_gate=ResearchToolGate(
             args.get("tool_catalog_path", "config/agent_krypto_research_tool_catalog.json")
@@ -332,13 +343,13 @@ def _handle_evaluate(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict
     version is fail-closed: nothing here falls back to a raw-market metric.
     """
     claim_store = HoldoutClaimStore(
-        db_path=args.get("holdout_claim_db") or "research/agent-krypto/holdout_claims.db"
+        db_path=args.get("holdout_claim_db") or DEFAULT_HOLDOUT_CLAIMS_DB
     )
     policy_payload = _load_json_file(args["promotion_policy_file"])
     policy = PromotionPolicy(**policy_payload)
     artifact = _artifact_from_payload(_load_json_file(args["strategy_artifact_file"]))
 
-    output_root = Path(args.get("experiment_output_root", "research/agent-krypto/experiments"))
+    output_root = Path(args.get("experiment_output_root") or DEFAULT_EXPERIMENT_OUTPUT_ROOT)
     trial_id = args.get("trial_id") or artifact.strategy_version
     trial_path = output_root / "trials" / f"{trial_id}.json"
     if not trial_path.is_file():
@@ -367,7 +378,7 @@ def _handle_evaluate(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict
         costs=trial["costs"],
     )
 
-    lake = CryptoDataLake(root=args.get("data_root", "research/agent-krypto"))
+    lake = CryptoDataLake(root=args.get("data_root") or DEFAULT_DATA_ROOT)
     bars = [
         row
         for row in lake.read_version(experiment_config.dataset_version).to_pylist()
@@ -382,7 +393,7 @@ def _handle_evaluate(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict
         raise ExperimentError("not enough bars to compute the frozen holdout")
 
     labels = build_point_in_time_labels(bars, config=artifact.label_config)
-    feature_root = Path(args.get("data_root", "research/agent-krypto"))
+    feature_root = Path(args.get("data_root") or DEFAULT_DATA_ROOT)
     feature_rows = _load_feature_rows(feature_root, experiment_config)
     feature_by_time = {str(row["available_at"]): row for row in feature_rows}
     aligned_features = []
@@ -455,7 +466,7 @@ def _handle_promote(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict[
             payload,
             claim_store=HoldoutClaimStore(
                 args.get("holdout_claim_db")
-                or "research/agent-krypto/holdout_claims.db"
+                or DEFAULT_HOLDOUT_CLAIMS_DB
             ),
             expected_dataset_version=config["dataset_version"],
             expected_feature_schema_version=config["feature_schema_version"],
@@ -767,7 +778,7 @@ def _handle_research_loop(args: Mapping[str, Any], config: Mapping[str, Any]) ->
     partial promote.
     """
     now = datetime.now(timezone.utc)
-    data_root = Path(args.get("data_root") or "research/agent-krypto")
+    data_root = Path(args.get("data_root") or DEFAULT_DATA_ROOT)
     data_root.mkdir(parents=True, exist_ok=True)
     default_symbols = _DEFAULT_LOCAL_SYMBOLS if args.get("local_data_dir") else SYMBOLS
     symbols = tuple(str(value) for value in (args.get("required_symbols") or default_symbols))
@@ -994,18 +1005,18 @@ def _handle_candidate_cycle(args: Mapping[str, Any]) -> dict[str, Any]:
     )
     candidate = generator.generate()[advance_result.trial_index]
 
-    data_root = args.get("data_root", "research/agent-krypto")
+    data_root = args.get("data_root") or DEFAULT_DATA_ROOT
     lake = CryptoDataLake(root=data_root)
     runner = ExperimentRunner(
         lake,
         feature_root=data_root,
-        output_root=args.get("experiment_output_root", "research/agent-krypto/experiments"),
+        output_root=args.get("experiment_output_root") or DEFAULT_EXPERIMENT_OUTPUT_ROOT,
         experiment_sink=MlflowExperimentRegistry(
-            args.get("mlflow_tracking_uri", "sqlite:///research/agent-krypto/mlruns.db"),
+            args.get("mlflow_tracking_uri") or DEFAULT_MLFLOW_TRACKING_URI,
             "agent-krypto-research",
         ),
         research_notes=ChromaResearchNotes(
-            args.get("rag_path", "research/agent-krypto/rag")
+            args.get("rag_path") or DEFAULT_RAG_PATH
         ),
         tool_gate=ResearchToolGate(
             args.get("tool_catalog_path", "config/agent_krypto_research_tool_catalog.json")

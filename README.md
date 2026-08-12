@@ -28,6 +28,11 @@ Otwórz http://localhost:5174/
 - `CRYPTO_RUNTIME_ROOT` — stan rund, logi i blokady, domyślnie `./data/runtime`.
 - `PORTFOLIO_API_URL` — wersjonowane API Portfolio Tracker.
 
+`data/lake` przechowuje niezmienne wersje `raw`, zbiory cech i pliki Parquet.
+`data/runtime` przechowuje bazy rund, artefakty, eksperymenty, stan autotradera
+i blokady procesu. Oba katalogi są poza Git; CLI i backend używają tych samych
+zmiennych środowiskowych i nie zapisują już do `BOT/research/agent-krypto`.
+
 ## Granica projektu
 
 - Kod nie może importować modułów z Portfolio Tracker.
