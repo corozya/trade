@@ -2767,7 +2767,7 @@ def analysis_history(window_id: str) -> list[dict[str, Any]]:
 
 
 _CRYPTO_DASHBOARD_AGENT = "crypto-dashboard-analyst"  # .claude/agents/crypto-dashboard-analyst.md — role/instructions moved out of the per-message prompt (#204, user request 2026-08-08), see that file for what it covers
-_CRYPTO_DASHBOARD_ROOT = Path(__file__).resolve().parent.parent.parent
+_CRYPTO_DASHBOARD_ROOT = Path(__file__).resolve().parent.parent
 _CRYPTO_DASHBOARD_AGENT_PATH = _CRYPTO_DASHBOARD_ROOT / ".claude" / "agents" / f"{_CRYPTO_DASHBOARD_AGENT}.md"
 
 

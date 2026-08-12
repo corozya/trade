@@ -14,7 +14,7 @@ python3 -m venv .venv
 npm --prefix frontend ci
 ```
 
-Uruchomienie backendu (8421) i frontendu (5174):
+Uruchomienie backendu (8423) i frontendu (5175):
 
 ```bash
 ./dev.sh start

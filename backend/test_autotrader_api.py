@@ -214,6 +214,11 @@ def test_autotrader_claude_success_does_not_call_codex(monkeypatch, caplog):
     assert "provider=codex" not in caplog.text
 
 
+def test_codex_autotrader_role_is_resolved_inside_split_repository():
+    assert main._CRYPTO_DASHBOARD_ROOT == main.Path(main.__file__).resolve().parents[1]
+    assert main._CRYPTO_DASHBOARD_AGENT_PATH.is_file()
+
+
 def test_codex_autotrader_uses_role_dynamic_prompt_and_read_only_output_file(monkeypatch, tmp_path):
     role_path = tmp_path / "analyst.md"
     role_path.write_text("ANALYST ROLE")
