@@ -12,7 +12,7 @@ class PanelStrategy(IStrategy):
     # --- Ustawienia Multi-Timeframe ---
     informative_timeframes = ['1d', '4h', '1h', '30m', '15m', '3m']
 
-    # --- Dane z CryptoDataLake (research/agent-krypto), montowane read-only
+    # --- Dane z CryptoDataLake (data/lake), montowane read-only
     # jako /freqtrade/user_data/crypto_lake — surowe (open_interest,
     # taker_volume, long_short_ratio, funding) i prekalkulowane wskaźniki
     # (rsi/macd/stochastic/risk_indicator/atr), publikowane w tym samym

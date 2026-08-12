@@ -37,7 +37,7 @@ Wszystkie muszą być spełnione **każdorazowo**, nie tylko przy pierwszym
 uruchomieniu:
 
 1. **Kilka kolejnych bucketów research-loop bez nieobsłużonych ERROR.**
-   Sprawdź `research/agent-krypto/logs/research_loop_observation.log` —
+   Sprawdź `data/runtime/logs/research_loop_observation.log` —
    ostatnie N cykli (N ustala operator, min. kilka) mają `status: "DONE"`,
    brak `stale ohlcv`, `cycle.status == "WAIT"` z `execution_result: null`.
    Jeśli cron odświeżania danych (`refresh_bitget_ohlcv.py`, #128) miał
@@ -99,12 +99,12 @@ gate.resume_after_approval()  # jawna zgoda operatora, TA sama sesja, per-cykl
 
 conn = get_conn("tracker.db")
 # feature_rows/market_prices z NAJNOWSZEGO realnego cyklu research-loop
-# (research/agent-krypto/datasets/<feature_version>/features.parquet),
+# (data/lake/datasets/<feature_version>/features.parquet),
 # nie z syntetycznych/starych danych
 result = run_demo_cycle(
     config=config, gate=gate, conn=conn, portfolio_id=<demo_portfolio_id>,
     feature_rows=..., market_prices=...,
-    audit_log_path="research/agent-krypto/logs/demo_execution_audit.jsonl",
+    audit_log_path="data/runtime/logs/demo_execution_audit.jsonl",
 )
 ```
 

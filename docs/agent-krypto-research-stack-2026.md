@@ -95,7 +95,7 @@ mplfinance jest narzędziem wizualnym, nie źródłem sygnału.
 ## Proponowana fizyczna struktura
 
 ```text
-research/agent-krypto/
+data/lake/
   raw/                 # DVC, Parquet, immutable
   datasets/            # wersje feature tables
   requests/            # LearningRequest / ToolRequest

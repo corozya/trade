@@ -1,5 +1,5 @@
 """Read-only access from freqtrade strategies to CryptoDataLake
-(research/agent-krypto/raw/), mounted read-only into the container at
+(data/lake/raw/), mounted read-only into the container at
 /freqtrade/user_data/crypto_lake (see docker-compose.yml).
 
 CryptoDataLake stores every data_kind (ohlcv, funding, open_interest,
@@ -10,7 +10,7 @@ raw/latest.json (a "{data_kind}/{symbol}/{timeframe}" -> dataset_id
 registry). Freqtrade pairs use ccxt's unified format ("BTC/USDT:USDT");
 CryptoDataLake uses the OKX instId ("BTC-USDT-SWAP") — the two must be
 mapped explicitly, there is no reliable string transform for every symbol
-(e.g. WLD-USD_UM_XPERP-310613 in research/agent-krypto/backend/config/
+(e.g. WLD-USD_UM_XPERP-310613 in config/
 crypto_backfill_symbols.json), so only pairs actually in use are listed.
 """
 

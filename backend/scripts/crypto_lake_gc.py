@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sqlite3
 from pathlib import Path
@@ -57,13 +58,12 @@ from pathlib import Path
 # part-inheritance before anything is considered safe to delete. Paths are
 # relative to the repo root (two levels above this script's scripts/ dir);
 # missing files are skipped, not an error (e.g. a lake-only checkout).
-_DEFAULT_EXTRA_DB_RELATIVE_PATHS = (
-    "research/agent-krypto/insight_reports.db",
-    "research/agent-krypto/paper_execution.sqlite",
-    "research/agent-krypto/candidate_cursor.db",
-    "research/agent-krypto/runs/orchestrator_runs.db",
-    "backend/research/agent-krypto/mlruns.db",
-    "backend/research/agent-krypto/runs/orchestrator_runs.db",
+_DEFAULT_EXTRA_DB_RUNTIME_PATHS = (
+    "insight_reports.db",
+    "paper_execution.sqlite",
+    "candidate_cursor.db",
+    "runs/orchestrator_runs.db",
+    "mlruns.db",
 )
 
 
@@ -190,7 +190,10 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = (
         Path(args.repo_root) if args.repo_root else Path(__file__).resolve().parents[2]
     )
-    extra_db_paths = [repo_root / rel for rel in _DEFAULT_EXTRA_DB_RELATIVE_PATHS]
+    runtime_root = Path(
+        os.environ.get("CRYPTO_RUNTIME_ROOT", repo_root / "data" / "runtime")
+    ).expanduser()
+    extra_db_paths = [runtime_root / rel for rel in _DEFAULT_EXTRA_DB_RUNTIME_PATHS]
     extra_db_paths += [Path(p) for p in args.extra_db]
 
     all_ids = {p.name for p in versions_dir.iterdir() if p.is_dir()}

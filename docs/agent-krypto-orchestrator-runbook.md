@@ -72,7 +72,7 @@ rzeczywisty identyfikator do konfiguracji:
 .venv/bin/python agent_krypto_cli.py ingest --config-version v1 \
   --config-path /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json \
   --local-data-dir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
-  --data-root /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto \
+  --data-root /home/corozya/www/crypto-trading-agent/data/lake \
   --as-of 2026-04-15T03:00:00Z --max-age-minutes 15 \
   --update-config /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json
 ```
@@ -84,7 +84,7 @@ ma zakończyć się fail-closed jako `stale`; nie należy zwiększać
 
 Prawidłowy wynik ma `status: "DONE"` oraz
 `result.dataset_id: "market-..."`. Manifest w
-`research/agent-krypto/raw/versions/<dataset_id>/manifest.json` musi wskazywać
+`data/lake/raw/versions/<dataset_id>/manifest.json` musi wskazywać
 pięć symboli, timeframe `15m`, źródłowe nazwy plików i ich SHA-256. Ponowienie
 identycznej komendy zwraca ten sam `dataset_id`.
 
@@ -100,7 +100,7 @@ zachowanie fail-closed.
 # 1) ingest realnych danych z fixture (dla adaptera lokalnego patrz 1.2)
 .venv/bin/python agent_krypto_cli.py ingest --config-version v1 \
   --symbol BTC-USDT-SWAP --source-path <fixture.json> \
-  --data-root research/agent-krypto
+  --data-root data/lake
 
 # 2) LearningRequest / ToolRequest
 .venv/bin/python agent_krypto_cli.py request --config-version v1 \
@@ -153,8 +153,8 @@ cd backend
 .venv/bin/python agent_krypto_cli.py research-loop --config-version v1 \
   --config-path /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json \
   --local-data-dir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
-  --data-root /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto \
-  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db \
+  --data-root /home/corozya/www/crypto-trading-agent/data/lake \
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/runs/orchestrator_runs.db \
   --as-of 2026-04-15T03:00:00Z --max-age-minutes 15
 ```
 
@@ -243,7 +243,7 @@ Implementacja: `scripts/refresh_bitget_ohlcv.py` (+ `scripts/test_refresh_bitget
 */10 * * * * PATH=/home/corozya/.pyenv/versions/3.11.9/bin:/usr/bin:/bin \
   /home/corozya/www/crypto-trading-agent/backend/.venv/bin/python \
   /home/corozya/www/crypto-trading-agent/scripts/refresh_bitget_ohlcv.py \
-  >> /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/logs/bitget_refresh.log 2>&1
+  >> /home/corozya/www/crypto-trading-agent/data/lake/logs/bitget_refresh.log 2>&1
 ```
 
 **Known issues (naprawione 2026-07-24):**
@@ -284,7 +284,7 @@ Pobiera 15m OHLCV dla 5 par (BTC/ETH/DOGE/SOL/XRP-USDT:USDT) z Bitget przez
 freqtrade), atomowo podmienia pliki w `data/bitget/futures/*.feather` tylko
 po walidacji (świeżość/kompletność/duplikaty/konflikty), aktualizuje
 `data/bitget/futures/_manifest.json` i append-only lineage log
-`research/agent-krypto/logs/bitget_refresh_versions.jsonl`. Częściowy błąd
+`data/runtime/logs/bitget_refresh_versions.jsonl`. Częściowy błąd
 (1-4 z 5 par) → status `PARTIAL`, nieudane pary zachowują poprzedni plik
 nietknięty; wszystkie pary padły → `ERROR`. Log runu (stdout, w
 `bitget_refresh.log`) zawiera per-symbol `status`/`reason`/`dataset_version`.
@@ -351,7 +351,7 @@ Backup obejmuje: `datasets/` (Parquet), `experiments/` (trial ledger),
 (StrategyArtifactRegistry), `holdout_claims.db` (HoldoutClaimStore),
 `champion_registry.db` (`ChampionRegistry`, #141) i `insight_reports.db`
 (`InsightReportStore`, #142) — czyli cały lokalny stan pod
-`<data_root>/research/agent-krypto/...` (żaden komponent nie żyje na sieci;
+`<data_root>/...` (żaden komponent nie żyje na sieci;
 MLflow i Chroma to embedded clienci, nie serwisy). Patrz sekcja 9 dla opisu
 warstwy champion/challenger/insights/monitoring/paper-observation (#140-#144)
 i jej miejsca w tym backupie.
@@ -452,7 +452,7 @@ cd backend
 # krok 0 — potwierdź że artefakt jest PROMOTED i świeży
 .venv/bin/python -c "
 from services.agent_krypto_artifact_registry import StrategyArtifactRegistry
-r = StrategyArtifactRegistry('research/agent-krypto/artifacts/registry.db')
+r = StrategyArtifactRegistry('data/runtime/artifacts/registry.db')
 print(r.get_active(
     symbol='BTC-USDT-SWAP',
     expected_dataset_version='<realny dataset_version>',
@@ -467,7 +467,7 @@ print(r.get_active(
 # krok 2 — jeden cycle z jawnie skonstruowanym, małym TradeIntent
 .venv/bin/python agent_krypto_cli.py cycle --config-version v1 \
   --symbol BTC-USDT-SWAP \
-  --artifact-registry-db research/agent-krypto/artifacts/registry.db \
+  --artifact-registry-db data/runtime/artifacts/registry.db \
   --trade-intent-file <trade_intent_smoke.json> \
   --portfolio-id <demo_portfolio_id> \
   --tracker-db-path tracker.db
@@ -559,7 +559,7 @@ result = run_demo_cycle(
     config=config, gate=gate, conn=conn, portfolio_id=<demo_portfolio_id>,
     feature_rows=<point-in-time feature rows z tego samego dataset_version co research-loop>,
     market_prices={"BTC": <realna cena>, "ETH": <realna cena>, ...},
-    audit_log_path="research/agent-krypto/logs/demo_execution_audit.jsonl",
+    audit_log_path="data/runtime/logs/demo_execution_audit.jsonl",
 )
 print(result.run_id, result.events)
 ```
@@ -652,11 +652,11 @@ silnik, osobna idempotency (`candidate-cycle` nie używa `RunStore`/`dispatch`/
   --seed 1 \
   --symbol BTC-USDT-SWAP \
   --run-bucket "$(date -u +%Y-%m-%dT%H:%M:00Z)" \
-  --data-root research/agent-krypto \
-  --experiment-output-root research/agent-krypto/experiments \
+  --data-root data/lake \
+  --experiment-output-root data/runtime/experiments \
   --tool-catalog-path config/agent_krypto_research_tool_catalog.json \
-  --candidate-cursor-db research/agent-krypto/candidate_cursor.db \
-  --insight-reports-db research/agent-krypto/insight_reports.db
+  --candidate-cursor-db data/runtime/candidate_cursor.db \
+  --insight-reports-db data/runtime/insight_reports.db
 ```
 
 - `--search-space-file`: JSON z `dataset_version`, `feature_version` i
@@ -702,7 +702,7 @@ PO tym, jak sam zbudował i ocenił `StrategyArtifact` (przez istniejący
 .venv/bin/python agent_krypto_cli.py champion-compare \
   --strategy-artifact-file challenger_artifact.json \
   --symbol BTC-USDT-SWAP \
-  --champion-registry-db research/agent-krypto/champion_registry.db
+  --champion-registry-db data/runtime/champion_registry.db
 ```
 
 - `--strategy-artifact-file`: JSON w kształcie `StrategyArtifact.to_dict()`
@@ -814,7 +814,7 @@ crona.
 Przed wdrożeniem zapisz `allowlist.manifest_sha256` z wyniku i wykonaj backup
 z `--source-root ../..` (korzeń workspace), verify oraz restore do świeżego
 katalogu zgodnie z sekcją 4. Restore zachowuje wewnętrzną ścieżkę
-`research/agent-krypto/`. Rollback beta
+`data/lake/`. Rollback beta
 oznacza zatrzymanie procesu, przywrócenie zweryfikowanego backupu do nowego
 katalogu i przełączenie ścieżki dopiero po ręcznej kontroli. Istniejącego
 stanu nie nadpisuj; `--overwrite` pozostaje wyłącznie jawną decyzją operatora.
@@ -861,43 +861,21 @@ content-addressed wersje Parquet — pod backtesty, nie pod decyzje na żywo.
   `--incremental` zaraz po `--full` na tej samej dobowej świecy poprawnie
   kończy się `"no new candles"`, nie błędem konfliktu.
 
-### Docker
+### Uruchamianie po wydzieleniu
 
-Serwis `backfill` w `portfolio-tracker/docker-compose.yml`, osobny obraz
-(`Dockerfile.backfill`, multi-stage nie jest potrzebny — brak frontendu) od
-`app`. Inny cykl życia: uruchamiany okresowo/on-demand
-(`docker compose run --rm backfill ...`), nie długo działający serwer HTTP —
-brak `restart policy`/`healthcheck` celowo.
-
-Wolumeny: `../.env:/app/.env:ro` (sekrety OKX, ta sama konwencja co `app`),
-`../research/agent-krypto:/app/research/agent-krypto` (RW, root
-`CryptoDataLake` — struktura z `docs/agent-krypto-research-stack-2026.md`).
-
-Harmonogram trybu `--incremental` (dociąganie nowych punktów, w tym 5m-tail
-dla OI/taker-volume/long-short-ratio): **cron hosta** wołający
-`docker compose run` okresowo — najprostszy wariant zgodny z tym, że
-kontener nie jest długo działającym procesem. `--full` (pierwszy, pełny
-backfill do granicy horyzontu) jest uruchamiany ręcznie przez operatora,
-nigdy automatycznie.
-
-### Operacyjnie: `scripts/backfill_docker.sh`
-
-Steruje wyłącznie serwisem `backfill` (nie `app`, nie cronem agent-krypto):
+Backfill należy wyłącznie do repozytorium `crypto-trading-agent`; Portfolio
+Tracker nie montuje CryptoDataLake i nie uruchamia kontenera backfill.
 
 ```bash
-scripts/backfill_docker.sh build
-scripts/backfill_docker.sh full -- --data-kind ohlcv --symbol BTC-USDT-SWAP --timeframe 1d
-scripts/backfill_docker.sh incremental -- --data-kind ohlcv --symbol BTC-USDT-SWAP --timeframe 1d
-scripts/backfill_docker.sh status
-scripts/backfill_docker.sh logs
-scripts/backfill_docker.sh stop
+cd /home/corozya/www/crypto-trading-agent
+./dev.sh backfill --full --data-kind ohlcv --symbols BTC-USDT-SWAP
+./dev.sh backfill-oi --full --timeframe 1d --symbol BTC-USDT-SWAP
 ```
 
-`--lake-root` wewnątrz kontenera jest ustawiane przez skrypt na
-`/app/research/agent-krypto` (musi zgadzać się z wolumenem RW powyżej) —
-operator nie musi go podawać ręcznie; `--data-kind`/`--symbol`/`--timeframe`/
-`--alias` (domyślnie `OKX_AGENT_KRYPTO_ALIAS` z `.env`, patrz `environment:`
-serwisu `backfill`) trafiają wprost do `crypto_backfill_cli.py`.
+`CRYPTO_LAKE_ROOT` wskazuje katalog `data/lake`. Harmonogram trybu
+`--incremental` może uruchamiać powyższe CLI na hoście, ale `--full` pozostaje
+ręczną operacją operatora. Historyczny serwis `backfill` z dawnego
+`portfolio-tracker/docker-compose.yml` jest `superseded`.
 
 Zweryfikowane manualnie 2026-08-06: `build` + `full` (OHLCV BTC-USDT-SWAP/1d,
 alias `demo_main_full`) opublikowało realną wersję datasetu (365 wierszy,

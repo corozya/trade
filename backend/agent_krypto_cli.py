@@ -582,7 +582,9 @@ def _handle_e2e(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str,
     manual/opt-in on purpose.
     """
     now = datetime.now(timezone.utc)
-    data_root = Path(args.get("data_root") or f"research/agent-krypto-e2e/{args.get('run_bucket') or now.date().isoformat()}")
+    data_root = Path(args.get("data_root") or (
+        DEFAULT_RUNTIME_ROOT / "e2e" / (args.get("run_bucket") or now.date().isoformat())
+    ))
     data_root.mkdir(parents=True, exist_ok=True)
     symbol = "BTC-USDT-SWAP"
 

@@ -114,9 +114,9 @@ fields.
 
 Usage:
   crypto_backfill_indicators.py --full --indicator rsi \
-      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/research/agent-krypto
+      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
   crypto_backfill_indicators.py --incremental --indicator rsi \
-      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/research/agent-krypto
+      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
 """
 
 from __future__ import annotations

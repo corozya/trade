@@ -37,11 +37,11 @@ rather than silently producing nothing.
 
 Usage:
   crypto_backfill_indicators.py --full --indicator rsi \
-      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/research/agent-krypto
+      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
   crypto_backfill_indicators.py --incremental --indicator rsi \
-      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/research/agent-krypto
+      --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
   crypto_backfill_indicators.py --full --indicator rsi \
-      --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 15m,1h --lake-root /app/research/agent-krypto
+      --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 15m,1h --lake-root /app/data/lake
 """
 
 from __future__ import annotations

@@ -46,9 +46,10 @@ DEFAULT_PAIRS: tuple[str, ...] = (
 )
 DEFAULT_TIMEFRAME = "15m"
 DEFAULT_DATADIR = ROOT / "data" / "bitget"
-DEFAULT_LOG_PATH = (
-    ROOT / "research" / "agent-krypto" / "logs" / "bitget_refresh_versions.jsonl"
-)
+DEFAULT_RUNTIME_ROOT = Path(
+    os.environ.get("CRYPTO_RUNTIME_ROOT", ROOT / "data" / "runtime")
+).expanduser()
+DEFAULT_LOG_PATH = DEFAULT_RUNTIME_ROOT / "logs" / "bitget_refresh_versions.jsonl"
 
 DOWNLOAD_TIMEOUT_SECONDS = 60
 RETRY_ATTEMPTS = 2

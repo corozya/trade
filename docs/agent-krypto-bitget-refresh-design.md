@@ -59,7 +59,7 @@ katalogu automatycznie: jedyny downloader (`scripts/download_ohlc.sh`,
     --pairs BTC/USDT:USDT,ETH/USDT:USDT,DOGE/USDT:USDT,SOL/USDT:USDT,XRP/USDT:USDT \
     --timeframe 15m \
     --datadir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
-    >> /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/logs/bitget_refresh.log 2>&1
+    >> /home/corozya/www/crypto-trading-agent/data/lake/logs/bitget_refresh.log 2>&1
   ```
 
 ## 4. Katalog docelowy
@@ -129,7 +129,7 @@ surowych plików feather (lżejsza warstwa, nie Parquet lake):
   symbol; wpis dla nieudanej pary **nie jest dotykany** (poprzedni wpis
   zostaje, odzwierciedlając rzeczywisty stan pliku na dysku).
 - **Immutable version history:** każda udana publikacja dopisuje log entry
-  do `research/agent-krypto/logs/bitget_refresh_versions.jsonl` (append-only,
+  do `data/runtime/logs/bitget_refresh_versions.jsonl` (append-only,
   jedna linia JSON na (symbol, refresh) z `dataset_version`, `sha256`,
   `previous_dataset_version`) — to jest lineage/audit trail, analogiczny do
   `manifest.json.lineage` w `CryptoDataLake`, ale nie duplikuje samego

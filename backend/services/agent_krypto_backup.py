@@ -37,15 +37,15 @@ from typing import Any
 # exist in the source workspace, e.g. a fresh install with no RAG notes yet.
 _COMPONENTS: tuple[tuple[str, str, bool], ...] = (
     # (component_name, relative_path, required)
-    ("datasets", "research/agent-krypto/datasets", False),
-    ("experiments", "research/agent-krypto/experiments", False),
-    ("mlflow", "research/agent-krypto/mlruns.db", False),
-    ("chroma", "research/agent-krypto/rag", False),
-    ("run_store", "research/agent-krypto/runs/orchestrator_runs.db", False),
-    ("artifact_registry", "research/agent-krypto/artifacts/registry.db", False),
-    ("holdout_claims", "research/agent-krypto/holdout_claims.db", False),
-    ("champion_registry", "research/agent-krypto/champion_registry.db", False),
-    ("insight_reports", "research/agent-krypto/insight_reports.db", False),
+    ("datasets", "data/lake/datasets", False),
+    ("experiments", "data/runtime/experiments", False),
+    ("mlflow", "data/runtime/mlruns.db", False),
+    ("chroma", "data/runtime/rag", False),
+    ("run_store", "data/runtime/runs/orchestrator_runs.db", False),
+    ("artifact_registry", "data/runtime/artifacts/registry.db", False),
+    ("holdout_claims", "data/runtime/holdout_claims.db", False),
+    ("champion_registry", "data/runtime/champion_registry.db", False),
+    ("insight_reports", "data/runtime/insight_reports.db", False),
 )
 
 

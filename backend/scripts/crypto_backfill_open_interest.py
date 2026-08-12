@@ -62,13 +62,13 @@ demonstrates it end-to-end against one just-published dataset.
 
 Usage:
   crypto_backfill_open_interest.py --full --timeframe 1d \
-      --symbol BTC-USDT-SWAP --lake-root /app/research/agent-krypto --alias demo_main_full
+      --symbol BTC-USDT-SWAP --lake-root /app/data/lake --alias demo_main_full
   crypto_backfill_open_interest.py --incremental --timeframe 5m \
-      --symbol BTC-USDT-SWAP --lake-root /app/research/agent-krypto --alias demo_main_full
+      --symbol BTC-USDT-SWAP --lake-root /app/data/lake --alias demo_main_full
   crypto_backfill_open_interest.py --full --timeframe 1d \
-      --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --lake-root /app/research/agent-krypto --alias demo_main_full
+      --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --lake-root /app/data/lake --alias demo_main_full
   crypto_backfill_open_interest.py --full --timeframe 1d \
-      --lake-root /app/research/agent-krypto --alias demo_main_full  # all CryptoDataLake.SYMBOLS
+      --lake-root /app/data/lake --alias demo_main_full  # all CryptoDataLake.SYMBOLS
 """
 
 from __future__ import annotations

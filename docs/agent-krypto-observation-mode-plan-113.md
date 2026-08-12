@@ -19,9 +19,9 @@ nie użyto sieci/OKX/TradeIntent — wyłącznie odczyt stanu repo i lokalny
   `dataset_version`/`feature_schema_version`/`label_config_version`/
   `promotion_policy_version` (nie `"unset"`) — fazy badawcze ingest/request
   już przeszły raz.
-- `research/agent-krypto/runs/` zawiera tylko `.gitkeep` — **brak
+- `data/runtime/runs/` zawiera tylko `.gitkeep` — **brak
   `orchestrator_runs.db`**. Ścieżka domyślna (z `agent_krypto_cli.py`,
-  `DEFAULT_RUN_DB`): `research/agent-krypto/runs/orchestrator_runs.db`.
+  `DEFAULT_RUN_DB`): `data/runtime/runs/orchestrator_runs.db`.
   Orchestrator `cycle` nigdy jeszcze nie wykonał się poza
   testami/preflight/e2e syntetycznym. Pierwsze realne uruchomienie w trybie
   obserwacyjnym będzie pierwszym wpisem w RunStore.
@@ -35,7 +35,7 @@ nie użyto sieci/OKX/TradeIntent — wyłącznie odczyt stanu repo i lokalny
   `RUNNING` i rzuca `LeaseLostError`, jeśli lease został przejęty przez kogoś
   innego w międzyczasie — to fizycznie uniemożliwia dwóm równoległym cronom
   zapisanie sprzecznego wyniku dla tego samego runu.
-- `research/agent-krypto/artifacts/registry.db` istnieje, ale
+- `data/runtime/artifacts/registry.db` istnieje, ale
   `active_compatible_promoted: 0` — nie ma dziś żadnego kompatybilnego
   `PROMOTED` artefaktu. Zgodnie z runbookiem (`require_promoted_artifact`)
   każdy `cycle` bez `TradeIntent` i bez PROMOTED musi zwrócić `WAIT` —
@@ -87,9 +87,9 @@ dla operatora, jeśli zdecyduje się przejść z planu do realnej aktywacji.
    w kodzie (`LOG_FILE="$REPO_ROOT/scripts/agent_krypto_cron.log"`) — to
    inny mechanizm niż orchestrator `agent_krypto_cli.py cycle` (#100) i
    oba nie powinny dzielić jednego pliku logu, np.
-   `research/agent-krypto/logs/cycle_observation.log`.
+   `data/runtime/logs/cycle_observation.log`.
 4. Po pierwszym uruchomieniu zweryfikować `orchestrator_runs.db` powstał
-   w `research/agent-krypto/runs/` i zawiera jeden wiersz `DONE`/`WAIT`.
+   w `data/runtime/runs/` i zawiera jeden wiersz `DONE`/`WAIT`.
 5. Nie podawać `--trade-intent-file` w żadnym zaplanowanym wywołaniu —
    jego brak jest jedynym gwarantem, że `cycle` nigdy nie dotknie OKX
    (patrz runbook sekcja 6: TradeIntent wymaga ręcznej, jednorazowej
@@ -110,7 +110,7 @@ dla operatora, jeśli zdecyduje się przejść z planu do realnej aktywacji.
 ## Zatrzymanie i rollback
 
 - **Zatrzymanie**: usunąć crontab entry (`crontab -e`, skasować linię) —
-  operacja natychmiastowa, nieinwazyjna, nie dotyka `research/agent-krypto/`.
+  operacja natychmiastowa, nieinwazyjna, nie dotyka `data/lake/`.
 - **Rollback stanu**: jeśli obserwacja zapisała coś niepożądanego w
   RunStore/registry, przywrócić z backupu sprzed aktywacji
   (`agent_krypto_cli.py restore --backup-dir ... --target-root ... --overwrite`

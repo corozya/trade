@@ -31,17 +31,18 @@ def _seeded_workspace(root):
     """Populate a data root with every backup component this module knows
     about, using the real modules that own each store (not hand-written
     fixtures), so the round-trip test exercises the actual schemas."""
-    research_root = root / "research" / "agent-krypto"
-    research_root.mkdir(parents=True)
+    lake_root = root / "data" / "lake"
+    runtime_root = root / "data" / "runtime"
+    runtime_root.mkdir(parents=True)
 
     # datasets/ + experiments/ : plain files, stand-ins for Parquet trees.
-    (research_root / "datasets" / "features-1").mkdir(parents=True)
-    (research_root / "datasets" / "features-1" / "features.parquet").write_bytes(b"parquet-bytes")
-    (research_root / "experiments" / "trials").mkdir(parents=True)
-    (research_root / "experiments" / "trials" / "trial-1.json").write_text('{"trial_id": "trial-1"}')
+    (lake_root / "datasets" / "features-1").mkdir(parents=True)
+    (lake_root / "datasets" / "features-1" / "features.parquet").write_bytes(b"parquet-bytes")
+    (runtime_root / "experiments" / "trials").mkdir(parents=True)
+    (runtime_root / "experiments" / "trials" / "trial-1.json").write_text('{"trial_id": "trial-1"}')
 
     # run_store: real RunStore so the SQLite schema/WAL are realistic.
-    run_store = RunStore(db_path=research_root / "runs" / "orchestrator_runs.db")
+    run_store = RunStore(db_path=runtime_root / "runs" / "orchestrator_runs.db")
     run_store.create(
         run_id="run-backup-1", phase="INGEST", symbol="BTC-USDT-SWAP",
         config_version="v1", config_hash="hash-1", request_fingerprint="fp-1",
@@ -54,8 +55,8 @@ def _seeded_workspace(root):
     )
 
     # artifact_registry: real StrategyArtifactRegistry with one PROMOTED artifact.
-    registry = StrategyArtifactRegistry(research_root / "artifacts" / "registry.db")
-    claim_store = HoldoutClaimStore(research_root / "holdout_claims.db")
+    registry = StrategyArtifactRegistry(runtime_root / "artifacts" / "registry.db")
+    claim_store = HoldoutClaimStore(runtime_root / "holdout_claims.db")
     artifact_payload = {
         "artifact_hash": "hash-artifact-1",
         "strategy_version": "sv-backup-1",
@@ -97,7 +98,7 @@ def _seeded_workspace(root):
     )
 
     # champion_registry (#141): one manually approved promotion.
-    champion_registry = ChampionRegistry(research_root / "champion_registry.db")
+    champion_registry = ChampionRegistry(runtime_root / "champion_registry.db")
     challenger_artifact = {
         "strategy_version": "sv-backup-1",
         "symbol": "BTC-USDT-SWAP",
@@ -111,7 +112,7 @@ def _seeded_workspace(root):
     champion_registry.promote(comparison=comparison, challenger_artifact=challenger_artifact, approved_by="backup-test")
 
     # insight_reports (#142): one persisted trial insight report.
-    insight_store = InsightReportStore(research_root / "insight_reports.db")
+    insight_store = InsightReportStore(runtime_root / "insight_reports.db")
     trial_result = {
         "trial_id": "trial-backup-1",
         "accepted": True,
@@ -124,7 +125,7 @@ def _seeded_workspace(root):
     }
     insight_store.save(build_trial_insight_report(trial_result))
 
-    return research_root
+    return runtime_root
 
 
 def test_backup_restore_round_trip_preserves_registry_and_run_store(tmp_path):
@@ -154,19 +155,20 @@ def test_backup_restore_round_trip_preserves_registry_and_run_store(tmp_path):
     target_root = tmp_path / "restored"
     restore_backup(backup_dir=backup_dir, target_root=target_root)
 
-    restored_research_root = target_root / "research" / "agent-krypto"
-    assert (restored_research_root / "datasets" / "features-1" / "features.parquet").read_bytes() == b"parquet-bytes"
-    assert (restored_research_root / "experiments" / "trials" / "trial-1.json").is_file()
+    restored_lake_root = target_root / "data" / "lake"
+    restored_runtime_root = target_root / "data" / "runtime"
+    assert (restored_lake_root / "datasets" / "features-1" / "features.parquet").read_bytes() == b"parquet-bytes"
+    assert (restored_runtime_root / "experiments" / "trials" / "trial-1.json").is_file()
 
     # Idempotency (run_store): the restored DB has the exact same DONE run row.
-    restored_run_store = RunStore(db_path=restored_research_root / "runs" / "orchestrator_runs.db")
+    restored_run_store = RunStore(db_path=restored_runtime_root / "runs" / "orchestrator_runs.db")
     restored_row = restored_run_store.get(run_id="run-backup-1")
     assert restored_row["status"] == "DONE"
     assert restored_row["result_json"] == '{"dataset_id": "market-1"}'
 
     # Registry (lineage): the restored registry still resolves the same
     # active PROMOTED artifact for the symbol with unchanged compatibility.
-    restored_conn = sqlite3.connect(restored_research_root / "artifacts" / "registry.db")
+    restored_conn = sqlite3.connect(restored_runtime_root / "artifacts" / "registry.db")
     try:
         persisted = restored_conn.execute(
             "SELECT strategy_version, status FROM strategy_artifacts WHERE strategy_version='sv-backup-1'"
@@ -175,7 +177,7 @@ def test_backup_restore_round_trip_preserves_registry_and_run_store(tmp_path):
         restored_conn.close()
     assert persisted == ("sv-backup-1", "PROMOTED")
 
-    restored_registry = StrategyArtifactRegistry(restored_research_root / "artifacts" / "registry.db")
+    restored_registry = StrategyArtifactRegistry(restored_runtime_root / "artifacts" / "registry.db")
     active = restored_registry.get_active(
         symbol="BTC-USDT-SWAP", expected_dataset_version="market-1",
         expected_feature_schema_version="features-1", expected_promotion_policy_version="p1",
@@ -184,7 +186,7 @@ def test_backup_restore_round_trip_preserves_registry_and_run_store(tmp_path):
 
     # champion_registry (#141): restored DB still resolves the same champion
     # and its full promotion history.
-    restored_champion_registry = ChampionRegistry(restored_research_root / "champion_registry.db")
+    restored_champion_registry = ChampionRegistry(restored_runtime_root / "champion_registry.db")
     restored_champion = restored_champion_registry.current_champion(symbol="BTC-USDT-SWAP")
     assert restored_champion["strategy_version"] == "sv-backup-1"
     restored_history = restored_champion_registry.history(symbol="BTC-USDT-SWAP")
@@ -192,7 +194,7 @@ def test_backup_restore_round_trip_preserves_registry_and_run_store(tmp_path):
     assert restored_history[0]["approved_by"] == "backup-test"
 
     # insight_reports (#142): restored DB still has the persisted report.
-    restored_insight_store = InsightReportStore(restored_research_root / "insight_reports.db")
+    restored_insight_store = InsightReportStore(restored_runtime_root / "insight_reports.db")
     restored_report = restored_insight_store.get(run_id="trial-backup-1")
     assert restored_report["run_id"] == "trial-backup-1"
     assert restored_report["source"] == "trial"
@@ -233,12 +235,12 @@ def test_verify_backup_integrity_detects_corruption_at_rest(tmp_path):
     create_backup(source_root=source_root, backup_dir=backup_dir)
 
     # Corrupt a backed-up file directly (simulating bit rot / manual tampering)
-    corrupted = backup_dir / "research" / "agent-krypto" / "datasets" / "features-1" / "features.parquet"
+    corrupted = backup_dir / "data" / "lake" / "datasets" / "features-1" / "features.parquet"
     corrupted.write_bytes(b"corrupted-bytes")
 
     result = verify_backup_integrity(backup_dir)
     assert result["ok"] is False
-    assert "research/agent-krypto/datasets" in result["mismatched_components"]
+    assert "data/lake/datasets" in result["mismatched_components"]
 
 
 def test_restore_verifies_and_rejects_a_manifest_content_mismatch(tmp_path):
@@ -250,7 +252,7 @@ def test_restore_verifies_and_rejects_a_manifest_content_mismatch(tmp_path):
     # Tamper with the backup's payload after the manifest was written; a
     # restore must not silently succeed with content that no longer matches
     # the recorded digest — that would be a silent lineage break.
-    tampered = backup_dir / "research" / "agent-krypto" / "datasets" / "features-1" / "features.parquet"
+    tampered = backup_dir / "data" / "lake" / "datasets" / "features-1" / "features.parquet"
     tampered.write_bytes(b"tampered")
 
     target_root = tmp_path / "restored"

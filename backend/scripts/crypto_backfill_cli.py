@@ -22,9 +22,9 @@ stub, without scope-creeping into #162's full OHLCV backfill design.
 
 Usage:
   crypto_backfill_cli.py --full --data-kind ohlcv --symbol BTC-USDT-SWAP \
-      --timeframe 1d --lake-root /app/research/agent-krypto --alias demo_main_full
+      --timeframe 1d --lake-root /app/data/lake --alias demo_main_full
   crypto_backfill_cli.py --incremental --data-kind ohlcv --symbol BTC-USDT-SWAP \
-      --timeframe 1d --lake-root /app/research/agent-krypto --alias demo_main_full
+      --timeframe 1d --lake-root /app/data/lake --alias demo_main_full
 
 #162 extends this dispatcher for the OHLCV backfill's actual scope (12
 months back, every ``CryptoDataLake.SYMBOLS`` x every requested timeframe,
@@ -32,7 +32,7 @@ not just a single symbol/timeframe pair):
 
   crypto_backfill_cli.py --full --data-kind ohlcv \
       --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 1m,5m,15m,1h,4h,1d \
-      --lake-root /app/research/agent-krypto --alias demo_main_full
+      --lake-root /app/data/lake --alias demo_main_full
 
 ``--symbols``/``--timeframes`` (comma-separated) default to *all*
 ``CryptoDataLake.SYMBOLS``/``TIMEFRAMES`` when omitted, so a bare
@@ -652,7 +652,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Docker (Dockerfile.backfill / docker-compose.yml `backfill` service)
-    # always mounts the lake at /app/research/agent-krypto — --lake-root stays
+    # always mounts the lake at /app/data/lake — --lake-root stays
     # a required, explicit argument for host/test use, but the compose
     # wrapper (scripts/backfill_docker.sh) does not force operators to repeat
     # it every invocation.

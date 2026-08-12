@@ -10,10 +10,10 @@ Zero OKX/TradeIntent/sieci/execution. Cron z #114 pozostaje niezmieniony
 
 - `crontab -l` → jedna linia (z #114), `*/15 * * * *`, orchestrator `cycle`,
   bez `--portfolio-id`/`--trade-intent-file`.
-- `research/agent-krypto/logs/cycle_observation.log` jeszcze nie istnieje —
+- `data/runtime/logs/cycle_observation.log` jeszcze nie istnieje —
   oczekiwane, bo cron jeszcze nie odpalił swojego pierwszego cyklu od
   instalacji.
-- `research/agent-krypto/runs/orchestrator_runs.db` zawiera jeden wiersz z
+- `data/runtime/runs/orchestrator_runs.db` zawiera jeden wiersz z
   ręcznego kontrolnego cyklu z #114 (`run-cf1e45a402e5f08190a8abb3`, `DONE`,
   `WAIT`).
 
@@ -24,11 +24,11 @@ cd backend
 
 # po konkretnym run_id (z JSON-a poprzedniej odpowiedzi)
 .venv/bin/python agent_krypto_cli.py status --run-id run-xxxxxxxx \
-  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/runs/orchestrator_runs.db
 
 # po (phase, symbol) — najstarszy PENDING/RUNNING/WAIT do wznowienia
 .venv/bin/python agent_krypto_cli.py status --phase CYCLE --symbol BTC-USDT-SWAP \
-  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/runs/orchestrator_runs.db
 ```
 
 Zweryfikowane bezpośrednio: `status` nigdy nie wykonuje żadnej fazy — czyta
@@ -120,13 +120,13 @@ Wynik faktycznego przebiegu (2026-07-23):
 
 - **Zatrzymanie procesu obserwacyjnego**: `crontab -e` (usunąć linię) albo
   `crontab -r` (jedyna linia w crontab dziś) — operacja natychmiastowa,
-  nie dotyka `research/agent-krypto/`.
+  nie dotyka `data/lake/`.
 - **Rollback stanu** (tylko jeśli konieczne): `restore --backup-dir ...
   --target-root ../.. --overwrite` — wymaga jawnej flagi `--overwrite`,
   fail-closed bez niej (`BackupError: restore target already exists`).
   Nie kasować logów/run-store ręcznie — restore z backupu jest jedynym
   wspieranym mechanizmem cofnięcia stanu.
-- Rollback nie usuwa `research/agent-krypto/logs/cycle_observation.log`
+- Rollback nie usuwa `data/runtime/logs/cycle_observation.log`
   ani `orchestrator_runs.db` poza zakresem samego przywrócenia — log
   cron pozostaje audytowalny niezależnie od stanu workspace'u.
 
