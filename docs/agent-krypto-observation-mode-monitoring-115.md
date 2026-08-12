@@ -20,15 +20,15 @@ Zero OKX/TradeIntent/sieci/execution. Cron z #114 pozostaje niezmieniony
 ## Komendy status — po run_id i po (phase, symbol)
 
 ```bash
-cd portfolio-tracker/backend
+cd backend
 
 # po konkretnym run_id (z JSON-a poprzedniej odpowiedzi)
 .venv/bin/python agent_krypto_cli.py status --run-id run-xxxxxxxx \
-  --run-db /home/corozya/www/BOT/research/agent-krypto/runs/orchestrator_runs.db
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db
 
 # po (phase, symbol) — najstarszy PENDING/RUNNING/WAIT do wznowienia
 .venv/bin/python agent_krypto_cli.py status --phase CYCLE --symbol BTC-USDT-SWAP \
-  --run-db /home/corozya/www/BOT/research/agent-krypto/runs/orchestrator_runs.db
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db
 ```
 
 Zweryfikowane bezpośrednio: `status` nigdy nie wykonuje żadnej fazy — czyta
@@ -88,11 +88,11 @@ Wykonane w ramach tego zadania, offline, do świeżych katalogów w `/tmp`
 (usuniętych po weryfikacji, żeby nie zostawiać artefaktów poza repo):
 
 ```bash
-cd portfolio-tracker/backend
+cd backend
 
 # backup całego workspace agent-krypto
 .venv/bin/python agent_krypto_cli.py backup \
-  --source-root /home/corozya/www/BOT \
+  --source-root /home/corozya/www/crypto-trading-agent \
   --backup-dir <fresh_backup_dir>
 
 # weryfikacja backupu bez przywracania

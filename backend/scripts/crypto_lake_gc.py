@@ -62,8 +62,8 @@ _DEFAULT_EXTRA_DB_RELATIVE_PATHS = (
     "research/agent-krypto/paper_execution.sqlite",
     "research/agent-krypto/candidate_cursor.db",
     "research/agent-krypto/runs/orchestrator_runs.db",
-    "portfolio-tracker/backend/research/agent-krypto/mlruns.db",
-    "portfolio-tracker/backend/research/agent-krypto/runs/orchestrator_runs.db",
+    "backend/research/agent-krypto/mlruns.db",
+    "backend/research/agent-krypto/runs/orchestrator_runs.db",
 )
 
 

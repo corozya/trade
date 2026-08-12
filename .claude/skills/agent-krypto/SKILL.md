@@ -35,7 +35,7 @@ X-Perps (`_UM_XPERP`) to jedyny wariant futures dozwolony dla kont EEA/Polska na
 ## Protokół cyklu (odpalany przez cron co 15 min)
 
 1. **Mandat i stan:** `get_mandate(portfolio_id=17)` + `get_portfolio(portfolio_id=17)` — gotówka, otwarte pozycje, ekspozycja.
-2. **Snapshot analizy:** czytaj `portfolio-tracker/backend/data/crypto_market/{symbol}_analysis.json` (`symbol` = `BTC`/`ETH`/`DOGE`), output skryptu analizy (ATS #79/#91) — JSON z prekalkulowanymi wskaźnikami (RSI14/EMA20/EMA50/ATR14/Bollinger/VWAP, MACD 12/26/9, StochRSI, ADX/DI, relative volume i OBV slope na 15m; ADX/DI oraz trend na 1h; trend 4h; order book, funding rate, Open Interest). **Nie licz wskaźników sam** z surowych świec — marnowanie kontekstu, ryzyko błędu. Nowe wskaźniki mają jawne `status`: gdy jest `"insufficient_data"`, wartości są `null` i nie wolno interpretować ich jako sygnału neutralnego. Jeśli `trend_1h`/`trend_4h` = `"unknown"`, traktuj to jak brak potwierdzenia higher_tf_context — skłania się do WAIT.
+2. **Snapshot analizy:** czytaj `data/runtime/snapshots/crypto_market/{symbol}_analysis.json` (`symbol` = `BTC`/`ETH`/`DOGE`), output skryptu analizy (ATS #79/#91) — JSON z prekalkulowanymi wskaźnikami (RSI14/EMA20/EMA50/ATR14/Bollinger/VWAP, MACD 12/26/9, StochRSI, ADX/DI, relative volume i OBV slope na 15m; ADX/DI oraz trend na 1h; trend 4h; order book, funding rate, Open Interest). **Nie licz wskaźników sam** z surowych świec — marnowanie kontekstu, ryzyko błędu. Nowe wskaźniki mają jawne `status`: gdy jest `"insufficient_data"`, wartości są `null` i nie wolno interpretować ich jako sygnału neutralnego. Jeśli `trend_1h`/`trend_4h` = `"unknown"`, traktuj to jak brak potwierdzenia higher_tf_context — skłania się do WAIT.
 3. **Decyzja per symbol (BTC, ETH, DOGE niezależnie):**
    - MACD/StochRSI/ADX-DI/relative volume/OBV są danymi pomocniczymi do oceny siły i potwierdzenia sygnału. Żaden z nich samodzielnie nie jest automatycznym triggerem LONG/SHORT i nie zastępuje zgodności z higher_tf_context.
    - **WAIT** — brak wystarczająco silnego sygnału, albo higher_tf_context sprzeciwia się kierunkowi krótkoterminowego sygnału (nie grasz przeciw trendowi 1h/4h bez wyraźnego powodu)
@@ -96,5 +96,5 @@ Agent nie edytuje skryptów analizy, kodu, konfiguracji ani danych wejściowych.
 
 ## Dry-run / test
 
-Weryfikacja e2e (mock, bez realnego zlecenia na OKX): `portfolio-tracker/backend/tests/test_okx_futures_trade.py`.
+Weryfikacja e2e (mock, bez realnego zlecenia na OKX): `backend/tests/test_okx_futures_trade.py`.
 Realny test manualny na koncie demo: patrz historia w ATS #77 (portfel wyczyszczony po testach, gotowy do produkcyjnego użycia).

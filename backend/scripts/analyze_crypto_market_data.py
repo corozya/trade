@@ -2,8 +2,8 @@
 """#79: krok 2/3 pipeline'u agenta krypto — przelicza surowe dane #78 na gotowy
 snapshot analityczny (wskaźniki prekalkulowane) dla agenta decyzyjnego (#80).
 
-Wejście: portfolio-tracker/backend/data/crypto_market/{symbol}_latest.json (#78).
-Wyjście: portfolio-tracker/backend/data/crypto_market/{symbol}_analysis.json —
+Wejście: backend/data/crypto_market/{symbol}_latest.json (#78).
+Wyjście: backend/data/crypto_market/{symbol}_analysis.json —
 płaska struktura per symbol (price/indicators_15m/higher_tf_context/orderbook/
 futures), format ustalony z konsultacji agenta-tradera (#80, 2026-07-21, patrz
 komentarz na #80 dla pełnego przykładu JSON).
@@ -22,7 +22,7 @@ Agent NIE commituje zmian w tym skrypcie (ustalenie z sesji 2026-07-21) —
 edycje zostają jako uncommitted diff, user przegląda/commituje ręcznie.
 
 Użycie:
-    cd portfolio-tracker/backend
+    cd backend
     .venv/bin/python scripts/analyze_crypto_market_data.py
 
 Odporność: brak/niepełne dane wejściowe dla danego symbolu (np. #78 failował)

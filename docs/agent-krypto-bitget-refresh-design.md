@@ -54,12 +54,12 @@ katalogu automatycznie: jedyny downloader (`scripts/download_ohlc.sh`,
   #128 AC "harmonogram... jest jawny i niezależny od crona research-loop"):
 
   ```
-  */10 * * * * /home/corozya/www/BOT/portfolio-tracker/backend/.venv/bin/python \
-    /home/corozya/www/BOT/scripts/refresh_bitget_ohlcv.py \
+  */10 * * * * /home/corozya/www/crypto-trading-agent/backend/.venv/bin/python \
+    /home/corozya/www/crypto-trading-agent/scripts/refresh_bitget_ohlcv.py \
     --pairs BTC/USDT:USDT,ETH/USDT:USDT,DOGE/USDT:USDT,SOL/USDT:USDT,XRP/USDT:USDT \
     --timeframe 15m \
-    --datadir /home/corozya/www/BOT/data/bitget/futures \
-    >> /home/corozya/www/BOT/research/agent-krypto/logs/bitget_refresh.log 2>&1
+    --datadir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
+    >> /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/logs/bitget_refresh.log 2>&1
   ```
 
 ## 4. Katalog docelowy

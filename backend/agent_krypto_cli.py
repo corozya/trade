@@ -3,7 +3,7 @@
 Every subcommand emits exactly one JSON object to stdout — no markdown, no
 conversational text — consistent with the reporting contract already used by
 ``.claude/skills/agent-krypto/SKILL.md``. Run this from
-``portfolio-tracker/backend/`` so the ``services`` package resolves.
+``backend/`` so the ``services`` package resolves.
 
 ``e2e`` (#105) is the single offline command that drives the whole loop
 (ingest -> request -> experiment -> evaluate -> promote -> cycle) against an
@@ -101,9 +101,9 @@ from services.crypto_strategy_research import (
 )
 from services.paper_execution import derive_point_in_time_decisions, record_research_loop_result
 
-# Repo root (this file lives at portfolio-tracker/backend/). Used to resolve
+# Repo root (this file lives at backend/). Used to resolve
 # the shared catalog configs (feature/tool) so `e2e` works regardless of
-# whether it is invoked from the repo root or from portfolio-tracker/backend/
+# whether it is invoked from the repo root or from backend/
 # — those catalogs live at <repo_root>/config/, not under backend/.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 

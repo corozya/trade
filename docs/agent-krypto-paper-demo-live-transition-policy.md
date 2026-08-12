@@ -83,7 +83,7 @@ uruchomieniu:
 ## 4. Procedura aktywacji DEMO (krok po kroku, wykonana i zweryfikowana)
 
 ```python
-# portfolio-tracker/backend, .venv aktywne, .env załadowany (load_dotenv)
+# backend, .venv aktywne, .env załadowany (load_dotenv)
 from services.db import get_conn
 from services.demo_execution import run_demo_cycle
 from services.paper_execution import ExecutionGate

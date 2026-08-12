@@ -19,5 +19,5 @@
 ## Validation
 
 - `scripts/test_run_agent_krypto_cycle.sh`
-- `portfolio-tracker/backend/tests/test_okx_futures_trade.py`
+- `backend/tests/test_okx_futures_trade.py`
 - testy walidatora raportu i regresja MCP/game dispatch

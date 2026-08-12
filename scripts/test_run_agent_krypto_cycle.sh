@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$TEST_ROOT/portfolio-tracker/backend/data/crypto_market" "$TEST_ROOT/scripts"
+mkdir -p "$TEST_ROOT/backend/data/crypto_market" "$TEST_ROOT/scripts"
 cp "$SCRIPT_DIR/agent_krypto_report.schema.json" "$TEST_ROOT/scripts/"
 cp "$SCRIPT_DIR/agent_krypto_claude.mcp.json" "$TEST_ROOT/scripts/"
 cp "$SCRIPT_DIR/validate_agent_krypto_mcp_config.py" "$TEST_ROOT/scripts/"
@@ -27,7 +27,7 @@ snapshot_time="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"
 for snapshot_symbol in BTC ETH DOGE; do
     printf '{"symbol":"%s-USD_UM_XPERP-TEST","analyzed_at":"%s","price":{"last":1},"indicators_15m":{"marker":"%s_SNAPSHOT_MARKER"},"higher_tf_context":{"trend_1h":"range"},"orderbook":null,"futures":{"funding_rate":0}}\n' \
         "$snapshot_symbol" "$snapshot_time" "$snapshot_symbol" \
-        > "$TEST_ROOT/portfolio-tracker/backend/data/crypto_market/${snapshot_symbol}_analysis.json"
+        > "$TEST_ROOT/backend/data/crypto_market/${snapshot_symbol}_analysis.json"
 done
 
 apply_fixture() {
@@ -46,7 +46,7 @@ apply_fixture "$TEST_ROOT/fake-python" '#!/usr/bin/env bash' \
     '    printf "{\"ok\":true}\n" ;;' \
     '  *analyze_crypto_market_data.py*)' \
     '    fresh_time="$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)"' \
-    '    for snapshot in "$AGENT_KRYPTO_REPO_ROOT"/portfolio-tracker/backend/data/crypto_market/*_analysis.json; do' \
+    '    for snapshot in "$AGENT_KRYPTO_REPO_ROOT"/backend/data/crypto_market/*_analysis.json; do' \
     '      sed -i -E "s/\"analyzed_at\":\"[^\"]+\"/\"analyzed_at\":\"$fresh_time\"/" "$snapshot"' \
     '    done' \
     '    printf "{\"ok\":true}\n" ;;' \
@@ -87,7 +87,7 @@ apply_fixture "$TEST_ROOT/fake-codex" '#!/usr/bin/env bash' \
     'printf "codex-home %s\n" "$CODEX_HOME" >> "$CALLS_FILE"' \
     '[ ! -e "$CODEX_HOME/config.toml" ] || exit 36' \
     '[ -L "$CODEX_HOME/auth.json" ] || exit 37' \
-    '[ -r "$CODEX_HOME/BOT-agent-krypto.config.toml" ] || exit 38' \
+    '[ -r "$CODEX_HOME/crypto-trading-agent.config.toml" ] || exit 38' \
     'result_file=""; schema_file=""; previous=""' \
     'for arg in "$@"; do' \
     '  case "$previous" in' \
@@ -114,8 +114,8 @@ export FETCH_STARTED="$TEST_ROOT/fetch-started"
 export FETCH_RELEASE="$TEST_ROOT/fetch-release"
 export AGENT_KRYPTO_PROVIDER_STATE_FILE="$TEST_ROOT/provider-state"
 export AGENT_KRYPTO_LOCK_FILE="$TEST_ROOT/cycle.lock"
-export AGENT_KRYPTO_CODEX_PROFILE_PATH="$TEST_ROOT/BOT-agent-krypto.config.toml"
-export AGENT_KRYPTO_CODEX_SOURCE_PROFILE_PATH="$TEST_ROOT/BOT-agent-krypto.source.config.toml"
+export AGENT_KRYPTO_CODEX_PROFILE_PATH="$TEST_ROOT/crypto-trading-agent.config.toml"
+export AGENT_KRYPTO_CODEX_SOURCE_PROFILE_PATH="$TEST_ROOT/crypto-trading-agent.source.config.toml"
 export AGENT_KRYPTO_CODEX_AUTH_PATH="$TEST_ROOT/auth.json"
 cat > "$AGENT_KRYPTO_CODEX_PROFILE_PATH" <<'EOF'
 [mcp_servers.playwright]
@@ -142,12 +142,12 @@ REAL_CODEX_BIN="${AGENT_KRYPTO_REAL_CODEX_BIN:-/home/corozya/.local/bin/codex}"
 [ -x "$REAL_CODEX_BIN" ] || fail "brak lokalnego Codex CLI do config smoke: $REAL_CODEX_BIN"
 CONFIG_SMOKE_HOME="$TEST_ROOT/codex-config-smoke-home"
 mkdir -p "$CONFIG_SMOKE_HOME"
-cp "$SCRIPT_DIR/../.codex/profiles/BOT-agent-krypto.config.toml" "$CONFIG_SMOKE_HOME/BOT-agent-krypto.config.toml"
+cp "$SCRIPT_DIR/../.codex/profiles/crypto-trading-agent.config.toml" "$CONFIG_SMOKE_HOME/crypto-trading-agent.config.toml"
 [ ! -e "$CONFIG_SMOKE_HOME/config.toml" ] || fail "config smoke nie może mieć base config.toml"
 SMOKE_INSTRUCTIONS_JSON="$(python3 -c 'import json, pathlib, sys; print(json.dumps(pathlib.Path(sys.argv[1]).read_text()))' "$SCRIPT_DIR/agent_krypto_codex_instructions.md")"
 CODEX_HOME="$CONFIG_SMOKE_HOME" "$REAL_CODEX_BIN" \
     -C "$SCRIPT_DIR/.." \
-    -p BOT-agent-krypto \
+    -p crypto-trading-agent \
     -c 'mcp_servers.portfolio-tracker.default_tools_approval_mode="approve"' \
     -c 'mcp_servers.portfolio-tracker.enabled=false' \
     -c "model_instructions_file=\"$SCRIPT_DIR/agent_krypto_codex_instructions.md\"" \
@@ -196,7 +196,7 @@ AGENT_KRYPTO_CODEX_PROFILE_PATH="$TEST_ROOT/missing-profile.config.toml" \
 missing_profile_exit=$?
 set -e
 [ "$missing_profile_exit" -ne 0 ] || fail "brak profilu Codexa zakończył się sukcesem"
-grep -q "FATAL: profil Codexa 'BOT-agent-krypto'" "$TEST_ROOT/missing-profile.out" || fail "brak czytelnego FATAL dla profilu Codexa"
+grep -q "FATAL: profil Codexa 'crypto-trading-agent'" "$TEST_ROOT/missing-profile.out" || fail "brak czytelnego FATAL dla profilu Codexa"
 [ ! -s "$CALLS_FILE" ] || fail "preflight profilu uruchomił fetch/analyze"
 
 # Istniejący, ale zbyt szeroki profil Codexa również kończy cykl przed pipeline.
@@ -216,7 +216,7 @@ AGENT_KRYPTO_CODEX_PROFILE_PATH="$TEST_ROOT/unsafe-profile.config.toml" \
 unsafe_profile_exit=$?
 set -e
 [ "$unsafe_profile_exit" -ne 0 ] || fail "zbyt szeroki profil Codexa zakończył się sukcesem"
-grep -q "FATAL: niepoprawny profil Codexa 'BOT-agent-krypto'" "$TEST_ROOT/unsafe-profile.out" || fail "brak FATAL dla zbyt szerokiego profilu"
+grep -q "FATAL: niepoprawny profil Codexa 'crypto-trading-agent'" "$TEST_ROOT/unsafe-profile.out" || fail "brak FATAL dla zbyt szerokiego profilu"
 grep -q 'inne MCP muszą być wyłączone' "$TEST_ROOT/unsafe-profile.out" || fail "FATAL nie wskazuje aktywnego dodatkowego MCP"
 [ ! -s "$CALLS_FILE" ] || fail "niepoprawny profil uruchomił fetch/analyze"
 
@@ -224,8 +224,8 @@ grep -q 'inne MCP muszą być wyłączone' "$TEST_ROOT/unsafe-profile.out" || fa
 for broken_case in missing invalid; do
     broken_dir="$TEST_ROOT/snapshots-$broken_case"
     mkdir -p "$broken_dir"
-    cp "$TEST_ROOT/portfolio-tracker/backend/data/crypto_market/BTC_analysis.json" "$broken_dir/BTC_analysis.json"
-    cp "$TEST_ROOT/portfolio-tracker/backend/data/crypto_market/ETH_analysis.json" "$broken_dir/ETH_analysis.json"
+    cp "$TEST_ROOT/backend/data/crypto_market/BTC_analysis.json" "$broken_dir/BTC_analysis.json"
+    cp "$TEST_ROOT/backend/data/crypto_market/ETH_analysis.json" "$broken_dir/ETH_analysis.json"
     if [ "$broken_case" = invalid ]; then printf 'not-json\n' > "$broken_dir/DOGE_analysis.json"; fi
     : > "$CALLS_FILE"
     set +e
@@ -325,7 +325,7 @@ assert_call -- 'approval_policy="never"'
 assert_call -- 'mcp_servers.portfolio-tracker.default_tools_approval_mode="approve"'
 assert_call -- 'model_instructions_file=".*agent_krypto_codex_instructions.md"'
 assert_call -- 'developer_instructions=.*AGENT_KRYPTO_RUNTIME_INSTRUCTIONS_V1'
-assert_call -- '-p BOT-agent-krypto'
+assert_call -- '-p crypto-trading-agent'
 assert_call -- 'mcp_servers.portfolio-tracker.enabled_tools=.*size_okx_futures_entry'
 assert_call 'logger-args .* codex '
 grep -q '"decisions"' "$LOGGER_INPUT" || fail "logger nie dostał raportu Codexa"

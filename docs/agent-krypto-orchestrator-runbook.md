@@ -2,12 +2,12 @@
 
 Status: operacyjny  
 Projekt: BOT  
-Zakres: `portfolio-tracker/backend/agent_krypto_cli.py` i moduły `services/agent_krypto_*`,
+Zakres: `backend/agent_krypto_cli.py` i moduły `services/agent_krypto_*`,
 `services/crypto_*`, `services/okx_safe_execution.py`.
 
 Ten dokument opisuje jak uruchomić, sprawdzić stan, wycofać, unieważnić i
 zdiagnozować orchestrator agenta krypto (#94-#106). Wszystkie polecenia
-uruchamiaj z katalogu `portfolio-tracker/backend/` (venv: `.venv/bin/python`),
+uruchamiaj z katalogu `backend/` (venv: `.venv/bin/python`),
 chyba że zaznaczono inaczej.
 
 ## 0. Mapa komend CLI
@@ -40,7 +40,7 @@ dokładnie jeden obiekt JSON na stdout z polami `command`, `run_id`, `phase`,
 ### 1.1 Weryfikacja offline całej pętli (zawsze pierwsza)
 
 ```bash
-cd portfolio-tracker/backend
+cd backend
 .venv/bin/python agent_krypto_cli.py e2e \
   --config-version v1 \
   --config-path /path/do/config.json \
@@ -70,11 +70,11 @@ rzeczywisty identyfikator do konfiguracji:
 
 ```bash
 .venv/bin/python agent_krypto_cli.py ingest --config-version v1 \
-  --config-path /home/corozya/www/BOT/config/agent_krypto_orchestrator_config.json \
-  --local-data-dir /home/corozya/www/BOT/data/bitget/futures \
-  --data-root /home/corozya/www/BOT/research/agent-krypto \
+  --config-path /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json \
+  --local-data-dir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
+  --data-root /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto \
   --as-of 2026-04-15T03:00:00Z --max-age-minutes 15 \
-  --update-config /home/corozya/www/BOT/config/agent_krypto_orchestrator_config.json
+  --update-config /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json
 ```
 
 Data `as-of` jest wspólnym historycznym watermarkiem lokalnych plików
@@ -148,13 +148,13 @@ purge/embargo, holdout per symbol, korekta multiple-testing,
 `accepted`/`rejected`) → CYCLE bez execution.
 
 ```bash
-cd portfolio-tracker/backend
+cd backend
 
 .venv/bin/python agent_krypto_cli.py research-loop --config-version v1 \
-  --config-path /home/corozya/www/BOT/config/agent_krypto_orchestrator_config.json \
-  --local-data-dir /home/corozya/www/BOT/data/bitget/futures \
-  --data-root /home/corozya/www/BOT/research/agent-krypto \
-  --run-db /home/corozya/www/BOT/research/agent-krypto/runs/orchestrator_runs.db \
+  --config-path /home/corozya/www/crypto-trading-agent/config/agent_krypto_orchestrator_config.json \
+  --local-data-dir /home/corozya/www/crypto-trading-agent/data/lake/bitget/futures \
+  --data-root /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto \
+  --run-db /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/runs/orchestrator_runs.db \
   --as-of 2026-04-15T03:00:00Z --max-age-minutes 15
 ```
 
@@ -241,9 +241,9 @@ Implementacja: `scripts/refresh_bitget_ohlcv.py` (+ `scripts/test_refresh_bitget
 
 ```
 */10 * * * * PATH=/home/corozya/.pyenv/versions/3.11.9/bin:/usr/bin:/bin \
-  /home/corozya/www/BOT/portfolio-tracker/backend/.venv/bin/python \
-  /home/corozya/www/BOT/scripts/refresh_bitget_ohlcv.py \
-  >> /home/corozya/www/BOT/research/agent-krypto/logs/bitget_refresh.log 2>&1
+  /home/corozya/www/crypto-trading-agent/backend/.venv/bin/python \
+  /home/corozya/www/crypto-trading-agent/scripts/refresh_bitget_ohlcv.py \
+  >> /home/corozya/www/crypto-trading-agent/data/runtime/research/agent-krypto/logs/bitget_refresh.log 2>&1
 ```
 
 **Known issues (naprawione 2026-07-24):**
@@ -274,7 +274,7 @@ Implementacja: `scripts/refresh_bitget_ohlcv.py` (+ `scripts/test_refresh_bitget
    poprzedni jest realną regresją; brak nowej świecy jest bezpiecznym no-op
    (`status: "ok"`, plik/manifest bit-identyczny, nic nowego do opublikowania).
    Zaktualizowano też test `test_refresh_retry_and_research_loop_are_idempotent`
-   (`portfolio-tracker/backend/tests/test_bitget_refresh_research_loop_integration.py`),
+   (`backend/tests/test_bitget_refresh_research_loop_integration.py`),
    który wcześniej błędnie asertował `ERROR` jako oczekiwane zachowanie
    retry z identycznymi danymi. Zweryfikowane: 21/21 testów zielone, realny
    refresh na produkcyjnym katalogu przy braku nowej świecy zwraca `OK`.
@@ -447,7 +447,7 @@ egzekucja nigdy się nie odpala.
 ### Procedura (ręczna, jeden strzał)
 
 ```bash
-cd portfolio-tracker/backend
+cd backend
 
 # krok 0 — potwierdź że artefakt jest PROMOTED i świeży
 .venv/bin/python -c "
@@ -539,7 +539,7 @@ symbolach na raz — ale wciąż wyłącznie ręcznie, nigdy z crona
 ### Procedura (ręczna, jeden strzał, poza CLI — skrypt/REPL operatora)
 
 ```python
-# uruchom z portfolio-tracker/backend, .venv aktywne
+# uruchom z backend, .venv aktywne
 import sqlite3
 from services.db import get_conn
 from services.demo_execution import run_demo_cycle
@@ -800,7 +800,7 @@ zabrania baz SQLite, danych rynkowych, logów i obrazów.
 Z katalogu głównego repo:
 
 ```bash
-portfolio-tracker/backend/.venv/bin/python \
+backend/.venv/bin/python \
   scripts/agent_krypto_beta_preflight.py --run-tests
 ```
 
@@ -834,7 +834,7 @@ content-addressed wersje Parquet — pod backtesty, nie pod decyzje na żywo.
 
 ### Współdzielona infrastruktura (#167)
 
-- `portfolio-tracker/backend/services/crypto_backfill.py` — `retry_read`
+- `backend/services/crypto_backfill.py` — `retry_read`
   (ten sam kontrakt co `okx_client._retry_read`: retry tylko na
   `OkxRateLimitError`/`httpx.TransportError`, backoff liniowy),
   `resume_cursor`/`resolve_since` (idempotentne wznawianie per
@@ -843,7 +843,7 @@ content-addressed wersje Parquet — pod backtesty, nie pod decyzje na żywo.
   `--full`/`--incremental`), `BackfillRunner` (cienki wrapper na
   `CryptoMarketIngestor.ingest`, ta sama publikacja/merge/idempotencja co
   reszta data lake).
-- `portfolio-tracker/backend/scripts/crypto_backfill_cli.py` — dispatcher CLI
+- `backend/scripts/crypto_backfill_cli.py` — dispatcher CLI
   używający powyższego. Utrzymuje rejestr `<lake-root>/raw/latest.json`
   (data_kind/symbol/timeframe → ostatni `dataset_id`), żeby `--incremental`
   nie wymagało ręcznego podawania `--base-dataset-id` przy każdym cyklu.

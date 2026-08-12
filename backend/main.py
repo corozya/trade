@@ -8,7 +8,7 @@ itself: before reading a series, it runs an `--incremental` backfill for
 exactly the (data_kind, symbol, timeframe) the frontend just asked for (the
 pair currently on screen), via the same CLI scripts a human would run
 manually (scripts/crypto_backfill_cli.py, scripts/crypto_backfill_open_interest.py)
-in portfolio-tracker/backend. It does not touch anything the viewer isn't
+in backend. It does not touch anything the viewer isn't
 currently looking at, and it does not backfill missing history further back
 than the incremental tail (scrolling past the lake's range still shows the
 existing "no data" empty state, unchanged).

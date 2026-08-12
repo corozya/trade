@@ -11,7 +11,7 @@ Zakres danych (spec ustalona z agentem-traderem, #80, 2026-07-21):
 NIE liczy żadnych wskaźników (RSI/EMA/ATR/...) — surowe dane wejściowe dla #79.
 
 Zapis: jeden plik JSON per symbol, nadpisywany "latest" (cron co 15 min,
-konsument #79 zawsze czyta najświeższy stan) — portfolio-tracker/backend/data/crypto_market/{symbol}_latest.json.
+konsument #79 zawsze czyta najświeższy stan) — backend/data/crypto_market/{symbol}_latest.json.
 
 Odporność: pojedynczy failed fetch (candle/orderbook/funding/OI) nie wywala
 całego skryptu — błąd per-sekcja jest zapisany w JSON (pole "error"), reszta
@@ -19,7 +19,7 @@ danych zapisuje się normalnie. Retry/backoff na odczytach już wbudowany w
 OkxClient (services/okx_client.py, _retry_read).
 
 Użycie:
-    cd portfolio-tracker/backend
+    cd backend
     .venv/bin/python scripts/fetch_crypto_market_data.py [alias]
 
     # przykład (cron):

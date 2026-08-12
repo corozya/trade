@@ -76,7 +76,7 @@ dla operatora, jeśli zdecyduje się przejść z planu do realnej aktywacji.
    fetch/analyze/decision #81 — inny mechanizm, inny cel), bez
    `--trade-intent-file`:
    ```
-   */15 * * * * cd /home/corozya/www/BOT/portfolio-tracker/backend && \
+   */15 * * * * cd /home/corozya/www/crypto-trading-agent/backend && \
      .venv/bin/python agent_krypto_cli.py cycle --config-version v1 \
      --symbol BTC-USDT-SWAP --portfolio-id <observation_portfolio_id> \
      --tracker-db-path tracker.db >> <log_path> 2>&1

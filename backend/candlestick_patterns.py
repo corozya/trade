@@ -1,5 +1,5 @@
 """Candlestick pattern detection (#226) — own body/wick-ratio logic, NOT
-talib (verified NOT installed in portfolio-tracker/backend/.venv,
+talib (verified NOT installed in backend/.venv,
 ModuleNotFoundError; installing it needs the native TA-Lib C library, a
 stack change out of scope without user approval — see task #226 description).
 
