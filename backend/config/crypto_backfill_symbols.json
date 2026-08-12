@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "symbols": [
+    "BTC-USDT-SWAP",
+    "ETH-USDT-SWAP",
+    "DOGE-USDT-SWAP",
+    "SOL-USDT-SWAP",
+    "XRP-USDT-SWAP",
+    "LTC-USDT-SWAP",
+    "WLD-USD_UM_XPERP-310613",
+    "HYPE-USDT-SWAP",
+    "ZEC-USDT-SWAP"
+  ]
+}

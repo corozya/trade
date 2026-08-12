@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent krypto ToolRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "requested_by", "tool", "params", "reason"],
+  "properties": {
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 100},
+    "requested_by": {"type": "string", "enum": ["agent-krypto-research"]},
+    "tool": {"type": "string", "minLength": 1, "maxLength": 100},
+    "params": {"type": "object"},
+    "reason": {"type": "string", "minLength": 5, "maxLength": 500}
+  }
+}

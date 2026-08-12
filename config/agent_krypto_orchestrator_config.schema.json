@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "agent-krypto orchestrator config",
+  "type": "object",
+  "required": [
+    "config_version",
+    "dataset_version",
+    "feature_schema_version",
+    "promotion_policy_version",
+    "label_config_version",
+    "credential_alias"
+  ],
+  "properties": {
+    "config_version": {"type": "string"},
+    "dataset_version": {"type": "string"},
+    "feature_schema_version": {"type": "string"},
+    "promotion_policy_version": {"type": "string"},
+    "label_config_version": {"type": "string"},
+    "credential_alias": {"type": "string"},
+    "lock_stale_after_seconds": {"type": "integer", "minimum": 60}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "portfolio-tracker": {
+      "command": "/home/corozya/www/investment-portfolio-manager/.venv/bin/python",
+      "args": [
+        "/home/corozya/www/investment-portfolio-manager/backend/mcp_server.py"
+      ]
+    }
+  }
+}

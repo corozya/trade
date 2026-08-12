@@ -1,0 +1,17 @@
+.env
+.venv/
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+.run/
+data/
+backend/.drawings/
+backend/.benchmark_last_run.txt
+scripts/agent_krypto_decisions.jsonl
+*.log
+*.lock
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent krypto LearningRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id",
+    "base_dataset_version",
+    "requested_by",
+    "symbols",
+    "hypothesis",
+    "features"
+  ],
+  "properties": {
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 100},
+    "base_dataset_version": {"type": "string", "minLength": 1, "maxLength": 200},
+    "requested_by": {"type": "string", "enum": ["agent-krypto-research"]},
+    "symbols": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "enum": ["BTC", "ETH", "DOGE", "SOL", "XRP"]}
+    },
+    "hypothesis": {"type": "string", "minLength": 10, "maxLength": 1000},
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "timeframe", "params", "reason"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "timeframe": {"type": "string"},
+          "params": {"type": "object"},
+          "reason": {"type": "string", "minLength": 5, "maxLength": 500}
+        }
+      }
+    }
+  }
+}

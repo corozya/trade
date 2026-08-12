@@ -1,0 +1,9 @@
+{
+  "config_version": "v1",
+  "credential_alias": "okx-demo-1",
+  "dataset_version": "market-8523a204112dc0fa",
+  "feature_schema_version": "features-1b040eb38b7e4cf5",
+  "label_config_version": "labels-316618771a2a1d54",
+  "lock_stale_after_seconds": 900,
+  "promotion_policy_version": "policy-a33e1b8f4b8d45e6"
+}

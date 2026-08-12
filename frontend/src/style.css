@@ -1,0 +1,12 @@
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7080;
+  border: 1px dashed rgba(128, 128, 128, 0.25);
+  border-radius: 4px;
+  font-size: 13px;
+}

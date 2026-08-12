@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.crypto-agent/contracts/execution-result.v1.schema.json",
+  "title": "ExecutionResult v1",
+  "type": "object",
+  "required": ["contractVersion", "ok", "state", "reconciliation_required"],
+  "properties": {
+    "contractVersion": {"const": "1.0"},
+    "ok": {"type": "boolean"},
+    "state": {"type": "string"},
+    "order_id": {"type": ["string", "null"]},
+    "cl_ord_id": {"type": ["string", "null"]},
+    "filled_qty": {"type": ["number", "null"]},
+    "fill_price": {"type": ["number", "null"]},
+    "reconciliation_required": {"type": "boolean"}
+  }
+}
+

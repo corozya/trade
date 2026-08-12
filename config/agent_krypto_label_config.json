@@ -1,0 +1,8 @@
+{
+  "base_timeframe": "15m",
+  "horizon": 16,
+  "label_type": "triple_barrier",
+  "stop_loss": 0.012,
+  "take_profit": 0.018,
+  "tie_break": "stop_loss"
+}

@@ -1,0 +1,8 @@
+{
+  "dataset_version": "market-e389156f44ce1ed2",
+  "feature_version": "features-a8df1ec49ee76052",
+  "lookback": {"low": 5, "high": 5, "step": 5},
+  "threshold": {"low": 20, "high": 20, "step": 1},
+  "signal_feature": {"choices": ["rsi_value"]},
+  "model_variant": {"choices": ["local-feature-momentum-v1"]}
+}

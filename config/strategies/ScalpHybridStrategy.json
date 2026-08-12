@@ -1,0 +1,32 @@
+{
+  "strategy_name": "ScalpHybridStrategy",
+  "params": {
+    "stoploss": {
+      "stoploss": -0.025
+    },
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "max_open_trades": {
+      "max_open_trades": 10
+    },
+    "sell": {
+      "atr_sl_mult": 1.8
+    },
+    "buy": {
+      "st_length": 7,
+      "volume_factor": 2.988
+    },
+    "roi": {
+      "0": 0.13,
+      "19": 0.025,
+      "52": 0.011,
+      "104": 0
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2026-07-03 12:11:33.095993+00:00"
+}

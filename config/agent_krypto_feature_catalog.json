@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "allowed_timeframes": ["5m", "15m", "1h", "4h"],
+  "features": {
+    "bollinger_bands": {
+      "params": {
+        "window": {"type": "integer", "min": 5, "max": 200},
+        "stddev": {"type": "number", "min": 0.5, "max": 4.0}
+      },
+      "outputs": ["mid", "upper", "lower", "width", "percent_b"]
+    },
+    "ema": {
+      "params": {
+        "period": {"type": "integer", "min": 2, "max": 500}
+      },
+      "outputs": ["value", "slope_3"]
+    },
+    "rsi": {
+      "params": {
+        "period": {"type": "integer", "min": 2, "max": 100}
+      },
+      "outputs": ["value"]
+    },
+    "atr": {
+      "params": {
+        "period": {"type": "integer", "min": 2, "max": 100}
+      },
+      "outputs": ["value", "pct"]
+    },
+    "adx": {
+      "params": {
+        "period": {"type": "integer", "min": 2, "max": 100}
+      },
+      "outputs": ["value", "plus_di", "minus_di"]
+    },
+    "macd": {
+      "params": {
+        "fast": {"type": "integer", "min": 2, "max": 100},
+        "slow": {"type": "integer", "min": 3, "max": 300},
+        "signal": {"type": "integer", "min": 2, "max": 100}
+      },
+      "outputs": ["line", "signal", "histogram"]
+    },
+    "relative_volume": {
+      "params": {
+        "window": {"type": "integer", "min": 5, "max": 500}
+      },
+      "outputs": ["value"]
+    },
+    "obv": {
+      "params": {
+        "slope_window": {"type": "integer", "min": 2, "max": 200}
+      },
+      "outputs": ["value", "slope"]
+    },
+    "vwap": {
+      "params": {
+        "window": {"type": "integer", "min": 2, "max": 500}
+      },
+      "outputs": ["value", "distance_pct"]
+    },
+    "returns": {
+      "params": {
+        "periods": {"type": "integer", "min": 1, "max": 200}
+      },
+      "outputs": ["value"]
+    },
+    "realized_volatility": {
+      "params": {
+        "window": {"type": "integer", "min": 5, "max": 500}
+      },
+      "outputs": ["value"]
+    }
+  }
+}

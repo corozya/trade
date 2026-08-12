@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "default_policy": "REVIEW_REQUIRED",
+  "tools": {
+    "candlestick_chart": {
+      "mode": "read_only",
+      "outputs": ["chart"],
+      "allowed_timeframes": ["1m", "5m", "15m", "1h", "4h", "1d"]
+    },
+    "renko_chart": {
+      "mode": "read_only",
+      "outputs": ["chart", "brick_table", "reversal_stats"],
+      "allowed_timeframes": ["1m", "5m", "15m", "1h", "4h"],
+      "params": {
+        "brick_mode": ["fixed_pct", "atr"],
+        "brick_value_min": 0.1,
+        "brick_value_max": 5.0
+      }
+    },
+    "heikin_ashi_chart": {
+      "mode": "read_only",
+      "outputs": ["chart", "candle_table"],
+      "allowed_timeframes": ["5m", "15m", "1h", "4h", "1d"]
+    },
+    "duckdb_query": {
+      "mode": "read_only_sandbox",
+      "outputs": ["table"],
+      "forbidden_sql": ["ATTACH", "COPY", "EXPORT", "INSTALL", "LOAD", "PRAGMA"]
+    },
+    "walk_forward": {
+      "mode": "controlled_compute",
+      "outputs": ["fold_metrics", "trades", "report"]
+    },
+    "bootstrap": {
+      "mode": "controlled_compute",
+      "outputs": ["confidence_intervals", "report"]
+    },
+    "feature_ablation": {
+      "mode": "controlled_compute",
+      "outputs": ["delta_metrics", "report"]
+    },
+    "rag_search": {
+      "mode": "read_only",
+      "outputs": ["note_references"]
+    },
+    "rag_note": {
+      "mode": "append_only",
+      "outputs": ["note_id"],
+      "required_metadata": [
+        "experiment_id",
+        "dataset_version",
+        "strategy_version",
+        "time_range",
+        "data_stage"
+      ]
+    }
+  }
+}

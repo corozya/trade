@@ -1,0 +1,65 @@
+# Migrated profile for crypto-trading-agent
+# generated file — do not edit manually
+
+[projects."/home/corozya/www/crypto-trading-agent"]
+trust_level = "trusted"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
+
+[mcp_servers.portfolio-tracker]
+command = "/home/corozya/www/investment-portfolio-manager/.venv/bin/python"
+args = ["/home/corozya/www/investment-portfolio-manager/backend/mcp_server.py"]
+enabled_tools = ["get_mandate", "get_portfolio", "execute_trade", "log_round"]
+
+[mcp_servers.ats]
+url = "https://ats.corozya.com/mcp"
+http_headers = { "X-Agent-Name" = "Agent Catalog", "X-Workspace-Id" = "10645eb7-8ad5-4dde-97f4-27fa06331552" }
+env_http_headers = { "Authorization" = "SAURON_ATS_AUTHORIZATION" }
+enabled = false
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+enabled = false
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/home/corozya/www/crypto-trading-agent"]
+env = { "ALLOWED_DIRECTORIES" = "/home/corozya/www/crypto-trading-agent", "MAX_READ_SIZE_MB" = "10" }
+enabled = false
+
+[mcp_servers.git]
+enabled = false
+
+[mcp_servers.github]
+enabled = false
+
+[mcp_servers.memory]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-memory"]
+env = { "MEMORY_PATH" = "/home/corozya/.codex/agent-memory/<agent-id>", "PERSIST_MODE" = "file" }
+enabled = false
+
+[mcp_servers.obsidian]
+url = "https://127.0.0.1:27124/mcp/"
+env_http_headers = { "Authorization" = "SAURON_OBSIDIAN_AUTHORIZATION" }
+enabled = false
+
+[mcp_servers.openaiDeveloperDocs]
+enabled = false
+
+[mcp_servers.plane]
+enabled = false
+
+[mcp_servers.redmine]
+enabled = false
+
+[mcp_servers.telegram]
+enabled = false
+
+[mcp_servers.telegram-notify]
+enabled = false
+
+[mcp_servers.toggl]
+enabled = false

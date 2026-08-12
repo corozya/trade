@@ -1,0 +1,19 @@
+{
+  "costs": {
+    "fee_bps": 2.0,
+    "slippage_bps": 1.5,
+    "spread_bps": 1.0
+  },
+  "max_degradation_vs_train": 0.35,
+  "max_drawdown": 0.2,
+  "min_oos_trades": 100,
+  "min_oos_trades_per_symbol_direction": 1,
+  "min_positive_fold_fraction": 0.6,
+  "multiple_testing": {
+    "base_expectancy_threshold": 0.0,
+    "correction": "bonferroni_sqrt_baseline_v1",
+    "include_rejected_trials": true
+  },
+  "n_folds": 5,
+  "stability_max_expectancy_stddev": 0.03
+}

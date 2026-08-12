@@ -1,0 +1,101 @@
+{
+  "title": "Agent krypto round report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "round_id", "decisions"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed"]
+    },
+    "round_id": {
+      "type": ["integer", "null"]
+    },
+    "decisions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/decision"}
+    }
+  },
+  "$defs": {
+    "strategyArtifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy_version",
+        "dataset_version",
+        "feature_schema_version",
+        "status",
+        "expires_at"
+      ],
+      "properties": {
+        "strategy_version": {"type": "string", "minLength": 1},
+        "dataset_version": {"type": "string", "minLength": 1},
+        "feature_schema_version": {"type": "string", "minLength": 1},
+        "status": {"type": "string", "enum": ["PROMOTED"]},
+        "expires_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "tradeIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "decision",
+        "side",
+        "qty",
+        "take_profit_price",
+        "stop_loss_price",
+        "reason",
+        "strategy_artifact"
+      ],
+      "properties": {
+        "symbol": {"type": "string", "enum": ["BTC", "ETH", "DOGE"]},
+        "decision": {"type": "string", "enum": ["WAIT", "TRADE"]},
+        "side": {"type": ["string", "null"], "enum": ["LONG", "SHORT", null]},
+        "qty": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "take_profit_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "stop_loss_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "reason": {"type": "string", "minLength": 1},
+        "strategy_artifact": {
+          "oneOf": [
+            {"$ref": "#/$defs/strategyArtifactRef"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "executionResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "order_id",
+        "filled_qty",
+        "reconciliation_required"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["filled", "live", "partial", "canceled", "unknown", "timeout"]
+        },
+        "order_id": {"type": ["string", "null"]},
+        "filled_qty": {"type": "number", "minimum": 0},
+        "reconciliation_required": {"type": "boolean"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trade_intent", "execution_result"],
+      "properties": {
+        "trade_intent": {"$ref": "#/$defs/tradeIntent"},
+        "execution_result": {
+          "oneOf": [
+            {"$ref": "#/$defs/executionResult"},
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}
