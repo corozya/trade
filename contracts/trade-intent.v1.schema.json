@@ -11,10 +11,10 @@
     "action": {"enum": ["OPEN", "INCREASE", "REDUCE", "CLOSE", "REVERSE"]},
     "side": {"enum": ["BUY", "SELL"]},
     "qty": {"type": "number", "exclusiveMinimum": 0},
+    "limit_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "stop_loss_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "take_profit_price": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "atr14": {"type": ["number", "null"], "exclusiveMinimum": 0},
     "reason": {"type": "string"}
   }
 }
-

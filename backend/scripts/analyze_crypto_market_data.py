@@ -48,7 +48,7 @@ if str(REPO_ROOT) not in sys.path:
 from ta_stack.indicators import _ema, compute_core
 from ta_stack.zones import _swing_sr
 
-from services.okx_trade import ALLOWED_OKX_FUTURES_BASES
+from services.okx_market import ALLOWED_OKX_FUTURES_BASES
 
 DATA_DIR = BACKEND_ROOT / "data" / "crypto_market"
 

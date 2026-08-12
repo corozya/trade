@@ -168,7 +168,7 @@ def test_research_loop_is_idempotent_for_the_same_run_bucket(tmp_path):
 def test_research_loop_never_reaches_okx_execution_or_trade_intent(tmp_path):
     """No TradeIntent path exists to reach: this command's cycle call never
     receives --trade-intent-file/--portfolio-id/--tracker-db-path, so
-    services.okx_safe_execution.execute_trade_intent can never be imported,
+    services.portfolio_client.PortfolioClient can never be instantiated,
     let alone called, from this code path."""
     import sys
 
@@ -178,7 +178,7 @@ def test_research_loop_never_reaches_okx_execution_or_trade_intent(tmp_path):
     config_path = _write_config(tmp_path / "config.json")
     fixture_path = _write_fixture(tmp_path, now)
 
-    sys.modules.pop("services.okx_safe_execution", None)
+    sys.modules.pop("services.portfolio_client", None)
     _, result = _run([
         "research-loop", "--config-version", "v1",
         "--data-root", str(tmp_path / "research" / "agent-krypto"),
@@ -191,10 +191,10 @@ def test_research_loop_never_reaches_okx_execution_or_trade_intent(tmp_path):
 
     assert result["status"] == "DONE"
     assert result["result"]["phases"]["cycle"]["execution_result"] is None
-    # okx_safe_execution is imported lazily inside _handle_cycle's local
+    # portfolio_client is imported lazily inside _handle_cycle's local
     # `_execute` closure, which is never invoked without a trade_intent —
     # a regression that started importing/calling it would show up here.
-    assert "services.okx_safe_execution" not in sys.modules
+    assert "services.portfolio_client" not in sys.modules
 
 
 def test_research_loop_fails_closed_on_stale_data(tmp_path):

@@ -17,45 +17,10 @@ from services.crypto_strategy_research import (
     chronological_holdout,
     purged_expanding_walk_forward,
 )
-from services.okx_safe_execution import execute_trade_intent
-from tests.test_okx_futures_trade import (
-    _FakeOkxClientFuturesOk,
-    _make_futures_okx_portfolio,
-)
 
 
 ROOT = __import__("pathlib").Path(__file__).resolve().parents[2]
 SYMBOL = "BTC-USDT-SWAP"
-
-
-class OfflineDemoClient(_FakeOkxClientFuturesOk):
-    calls = {
-        "get_instruments": 0,
-        "set_leverage": 0,
-        "place_order": 0,
-        "get_ticker": 0,
-        "get_order": 0,
-        "get_balance": 0,
-        "get_positions": 0,
-    }
-    last_place_order_kwargs = None
-
-    def get_positions(self, inst_type=None):
-        type(self).calls["get_positions"] += 1
-        return {"code": "0", "data": []}
-
-    def get_order(self, inst_id, ord_id=None, *, cl_ord_id=None):
-        type(self).calls["get_order"] += 1
-        return {
-            "code": "0",
-            "data": [{
-                "ordId": ord_id or "OFFLINE-ORDER",
-                "clOrdId": cl_ord_id,
-                "avgPx": "500",
-                "accFillSz": "1",
-                "state": "filled",
-            }],
-        }
 
 
 def _market_rows(count=120):
@@ -140,7 +105,7 @@ def _intent():
     }
 
 
-def test_offline_happy_path_data_to_execution_result(tmp_path, conn, price_env):
+def test_offline_happy_path_data_to_execution_result(tmp_path):
     lake = CryptoDataLake(tmp_path / "lake")
     version = lake.publish(
         _market_rows(),
@@ -161,7 +126,16 @@ def test_offline_happy_path_data_to_execution_result(tmp_path, conn, price_env):
     artifact, policy = _promoted_artifact(
         tmp_path, version.dataset_id, feature_version
     )
-    portfolio = _make_futures_okx_portfolio(conn)
+    submitted = []
+
+    def submit_to_portfolio(intent):
+        submitted.append(intent)
+        return {
+            "contractVersion": "1.0",
+            "ok": True,
+            "state": "filled",
+            "exchangeOrderId": "OFFLINE-ORDER",
+        }
 
     result = run_agent_krypto_cycle(
         artifact=artifact,
@@ -170,19 +144,13 @@ def test_offline_happy_path_data_to_execution_result(tmp_path, conn, price_env):
         expected_feature_schema_version=feature_version,
         expected_promotion_policy_version=policy.version,
         trade_intent=_intent(),
-        execute=lambda intent: execute_trade_intent(
-            portfolio_id=portfolio["id"],
-            intent=intent,
-            conn=conn,
-            credential_alias="okx_demo_main",
-            okx_client_factory=OfflineDemoClient,
-        ),
+        execute=submit_to_portfolio,
     )
 
     assert result["status"] == "COMPLETED"
     assert result["execution_result"]["ok"] is True
     assert result["execution_result"]["state"] == "filled"
-    assert OfflineDemoClient.last_place_order_kwargs["clOrdId"]
+    assert submitted == [_intent()]
 
 
 def test_unpromoted_strategy_waits_without_execution(tmp_path):

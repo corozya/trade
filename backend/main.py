@@ -52,8 +52,13 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from services.crypto_data_lake import CryptoDataLake, SYMBOLS as LAKE_SYMBOLS  # noqa: E402
 from services.okx_client import OkxClient  # noqa: E402
-from services.okx_trade import ALLOWED_OKX_FUTURES_BASES, execute_okx_futures_order  # noqa: E402
-from services.game import ValidationError as GameValidationError  # noqa: E402
+from services.okx_market import (  # noqa: E402
+    ALLOWED_OKX_FUTURES_BASES,
+    FUTURES_LEVERAGE,
+    MAX_FUTURES_MARGIN_USDC,
+    resolve_futures_instrument,
+)
+from services.portfolio_client import PortfolioClient, PortfolioUnavailable  # noqa: E402
 
 from risk_indicator import find_divergences  # noqa: E402
 from candlestick_patterns import detect_patterns  # noqa: E402
@@ -3025,7 +3030,7 @@ def _place_limit_order(symbol: str, *, entry_px: float, sl_px: float, tp_px: flo
       account — a mismatch against where orders actually land, which meant
       this gate could never catch a real duplicate on DEMO.
     Returns None when skipped (not an error — most proposals will skip this,
-    e.g. wrong symbol), or the execute_okx_futures_order result dict
+    e.g. wrong symbol), or the Portfolio Manager execution result
     (including `ok: False` + validation error text on rejection — margin
     limit, bad SL/TP, etc.), or `{"skipped": "..."}` for an existing
     position.
@@ -3043,7 +3048,7 @@ def _place_limit_order(symbol: str, *, entry_px: float, sl_px: float, tp_px: flo
 
     side = "BUY" if tp_px > entry_px else "SELL"
     # qty sized to land at (or just under) MAX_FUTURES_MARGIN_USDC at the
-    # limit price — execute_okx_futures_order re-validates this itself
+    # limit price — Portfolio Manager re-validates this itself
     # (fail-closed), this is just a starting point, not the safety boundary.
     #
     # Bug found 2026-08-08 (user report: BTC order rejected with "qty=
@@ -3052,16 +3057,15 @@ def _place_limit_order(symbol: str, *, entry_px: float, sl_px: float, tp_px: flo
     # plain float arithmetic — lotSz values like 0.0001 have no exact binary
     # representation, so the multiplication reintroduces trailing-digit
     # noise that `str(qty)` then carries verbatim into
-    # execute_okx_futures_order's `Decimal(str(qty)) % Decimal(lotSz)` check,
+    # Portfolio Manager's `Decimal(str(qty)) % Decimal(lotSz)` check,
     # which fails on noise a human/Decimal-only view of the same number
     # wouldn't see. Fixed by doing the floor-to-lot-size step in Decimal
-    # (exact) instead of float, matching the type execute_okx_futures_order
+    # (exact) instead of float, matching the type Portfolio Manager
     # itself validates against.
     from decimal import Decimal
-    from services.okx_trade import FUTURES_LEVERAGE, MAX_FUTURES_MARGIN_USDC, _resolve_futures_instrument
     try:
         client = OkxClient("demo_main_full", simulated_trading=True)
-        instrument = _resolve_futures_instrument(base, client)
+        instrument = resolve_futures_instrument(base, client)
         ct_val = Decimal(str(instrument["ctVal"]))
         lot_sz = Decimal(str(instrument["lotSz"]))
         min_sz = Decimal(str(instrument["minSz"]))
@@ -3075,14 +3079,22 @@ def _place_limit_order(symbol: str, *, entry_px: float, sl_px: float, tp_px: flo
     except Exception as exc:
         return {"ok": False, "error": f"nie udało się wyliczyć wielkości zlecenia: {exc}"}
 
+    intent = {
+        "idempotency_key": f"dashboard-{base.lower()}-{uuid.uuid4().hex}",
+        "symbol": base,
+        "action": "OPEN",
+        "side": side,
+        "qty": str(qty),
+        "reason": reason,
+        "limit_price": float(entry_px),
+        "stop_loss_price": float(sl_px),
+        "take_profit_price": float(tp_px),
+    }
     try:
-        return execute_okx_futures_order(
-            portfolio_id=_CRYPTO_DASHBOARD_PORTFOLIO_ID,
-            symbol=base, side=side, qty=qty,
-            reason=reason,
-            limit_price=float(entry_px), stop_loss_price=float(sl_px), take_profit_price=float(tp_px),
+        return PortfolioClient().submit_trade_intent(
+            _CRYPTO_DASHBOARD_PORTFOLIO_ID, intent
         )
-    except GameValidationError as exc:
+    except PortfolioUnavailable as exc:
         return {"ok": False, "error": str(exc)}
 
 
@@ -3125,10 +3137,9 @@ def _fetch_demo_position(base: str) -> dict[str, Any] | None:
     `closeOrderAlgo` on GET /account/positions was `[]` for all three. So we
     look up the live OCO algo order for this instId directly instead of
     trusting the position row's embedded field."""
-    from services.okx_trade import _resolve_futures_instrument
     try:
         client = _demo_client()
-        inst_id = _resolve_futures_instrument(base, client)["instId"]
+        inst_id = resolve_futures_instrument(base, client)["instId"]
         payload = client.get_positions(inst_type="FUTURES")
     except Exception:
         return None
@@ -3188,13 +3199,21 @@ def close_position(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     position = _fetch_demo_position(base)
     if position is None:
         return {"ok": False, "error": f"no open demo position on {base}"}
-    from services.okx_trade import FUTURES_MARGIN_MODE
     try:
-        client = _demo_client()
-        result = client.close_positions(position["inst_id"], FUTURES_MARGIN_MODE)
-    except Exception as exc:
+        result = PortfolioClient().submit_trade_intent(
+            _CRYPTO_DASHBOARD_PORTFOLIO_ID,
+            {
+                "idempotency_key": f"dashboard-{base.lower()}-close-{uuid.uuid4().hex}",
+                "symbol": base,
+                "action": "CLOSE",
+                "side": "SELL" if position["side"] == "long" else "BUY",
+                "qty": position["qty"],
+                "reason": "crypto-dashboard manual close",
+            },
+        )
+    except PortfolioUnavailable as exc:
         return {"ok": False, "error": str(exc)}
-    return {"ok": True, "symbol": base, "inst_id": position["inst_id"], "closed_position": position, "result": result.get("data")}
+    return {"ok": True, "symbol": base, "inst_id": position["inst_id"], "closed_position": position, "result": result}
 
 
 @app.post("/api/update_position")
@@ -3212,26 +3231,22 @@ def update_position(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
     position = _fetch_demo_position(base)
     if position is None:
         return {"ok": False, "error": f"no open demo position on {base}"}
-    if position.get("algo_id") is None:
-        return {"ok": False, "error": f"open position on {base} has no attached SL/TP algo order to amend"}
     try:
-        client = _demo_client()
-        result = client.amend_algo_orders(
-            position["inst_id"], position["algo_id"],
-            new_sl_trigger_px=str(new_sl) if new_sl is not None else None,
-            new_tp_trigger_px=str(new_tp) if new_tp is not None else None,
+        result = PortfolioClient().update_position_protection(
+            _CRYPTO_DASHBOARD_PORTFOLIO_ID,
+            {
+                "symbol": base,
+                "stop_loss_price": new_sl,
+                "take_profit_price": new_tp,
+            },
         )
-    except Exception as exc:
+    except PortfolioUnavailable as exc:
         return {"ok": False, "error": str(exc)}
-    data = result.get("data") if isinstance(result, dict) else None
-    first = data[0] if isinstance(data, list) and data else {}
-    if first.get("sCode") not in (None, "0"):
-        return {"ok": False, "error": first.get("sMsg") or "OKX rejected the amend", "result": data}
     return {
         "ok": True, "symbol": base, "inst_id": position["inst_id"],
         "stop_loss": float(new_sl) if new_sl is not None else position.get("stop_loss"),
         "take_profit": float(new_tp) if new_tp is not None else position.get("take_profit"),
-        "result": data,
+        "result": result,
     }
 
 
@@ -3265,12 +3280,11 @@ def okx_positions() -> dict[str, dict[str, Any] | None]:
     rows = payload.get("data", []) if isinstance(payload, dict) else []
     by_inst_id = {r.get("instId"): r for r in rows if float(r.get("pos") or 0)}
 
-    from services.okx_trade import _resolve_futures_instrument
     result: dict[str, dict[str, Any] | None] = {}
     client_for_resolve = _demo_client()
     for base in sorted(ALLOWED_OKX_FUTURES_BASES):
         try:
-            inst_id = _resolve_futures_instrument(base, client_for_resolve)["instId"]
+            inst_id = resolve_futures_instrument(base, client_for_resolve)["instId"]
         except Exception as exc:
             result[base] = {"unavailable": str(exc)[:300]}
             continue
@@ -3300,7 +3314,6 @@ def okx_position_history(symbol: str | None = None, limit: int = 50) -> list[dic
     acting with no memory of outcomes. `symbol` (optional) is the base, e.g.
     "BTC" — filters to that instFamily; omit for all ALLOWED_OKX_FUTURES_BASES.
     Newest first (OKX's own ordering)."""
-    from services.okx_trade import _resolve_futures_instrument
     inst_id = None
     if symbol:
         base = symbol.upper().strip()
@@ -3308,7 +3321,7 @@ def okx_position_history(symbol: str | None = None, limit: int = 50) -> list[dic
             raise HTTPException(status_code=422, detail=f"symbol base {base!r} not in allowed OKX futures bases")
         try:
             client = _demo_client()
-            inst_id = _resolve_futures_instrument(base, client)["instId"]
+            inst_id = resolve_futures_instrument(base, client)["instId"]
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"could not resolve instrument for {base}: {exc}")
     try:
@@ -3463,10 +3476,8 @@ def _demo_execution_lease():
 def _strict_demo_position(base: str = "BTC") -> dict[str, Any] | None:
     """Authoritative DEMO position read; unlike the UI helper, never maps an
     OKX/network failure to a false `flat` result."""
-    from services.okx_trade import _resolve_futures_instrument
-
     client = _demo_client()
-    instrument = _resolve_futures_instrument(base, client)
+    instrument = resolve_futures_instrument(base, client)
     payload = client.get_positions(inst_type="FUTURES")
     rows = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(rows, list):
@@ -3491,10 +3502,8 @@ def _strict_demo_position(base: str = "BTC") -> dict[str, Any] | None:
 
 
 def _strict_pending_orders(base: str = "BTC") -> list[dict[str, Any]]:
-    from services.okx_trade import _resolve_futures_instrument
-
     client = _demo_client()
-    inst_id = _resolve_futures_instrument(base, client)["instId"]
+    inst_id = resolve_futures_instrument(base, client)["instId"]
     payload = client.get_orders(inst_type="FUTURES")
     rows = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(rows, list):
@@ -3684,16 +3693,8 @@ def _autotrader_analyze(base: str, round_id: str, session_id: str | None) -> tup
 def _safe_trade_intent(
     base: str, decision: AutotraderDecision, round_id: str, position: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    from services.db import get_conn
-    from services.okx_safe_execution import execute_trade_intent
-    from services.okx_trade import (
-        FUTURES_LEVERAGE,
-        MAX_FUTURES_MARGIN_USDC,
-        _resolve_futures_instrument,
-    )
-
     client = _demo_client()
-    instrument = _resolve_futures_instrument(base, client)
+    instrument = resolve_futures_instrument(base, client)
     ticker_payload = client.get_ticker(instrument["instId"])
     ticker_rows = ticker_payload.get("data", []) if isinstance(ticker_payload, dict) else []
     if not ticker_rows or not ticker_rows[0].get("last"):
@@ -3738,16 +3739,10 @@ def _safe_trade_intent(
             "take_profit_price": decision.take_profit,
             "atr14": decision.atr14,
         })
-    conn = get_conn()
-    try:
-        return execute_trade_intent(
-            portfolio_id=_CRYPTO_DASHBOARD_PORTFOLIO_ID,
-            intent=intent,
-            conn=conn,
-            credential_alias="demo_main_full",
-        )
-    finally:
-        conn.close()
+    return PortfolioClient().submit_trade_intent(
+        portfolio_id=_CRYPTO_DASHBOARD_PORTFOLIO_ID,
+        intent=intent,
+    )
 
 
 def _autotrader_execute(base: str, decision: AutotraderDecision, round_id: str) -> dict[str, Any]:

@@ -9,7 +9,10 @@ import sys
 from pathlib import Path
 
 REQUIRED_SERVER = "portfolio-tracker"
-REQUIRED_TOOLS = {"get_mandate", "get_portfolio", "execute_trade", "log_round"}
+REQUIRED_TOOLS = {
+    "get_mandate", "get_portfolio", "size_okx_futures_entry",
+    "execute_trade", "log_round",
+}
 
 
 def _mcp_sections(text: str) -> dict[str, dict[str, object]]:
@@ -94,4 +97,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

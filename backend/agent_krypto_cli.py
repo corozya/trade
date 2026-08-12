@@ -489,19 +489,11 @@ def _handle_cycle(args: Mapping[str, Any], config: Mapping[str, Any]) -> dict[st
     trade_intent = _load_json_file(args.get("trade_intent_file")) or None
 
     def _execute(intent: Mapping[str, Any]) -> Mapping[str, Any]:
-        from services.db import get_conn
-        from services.okx_safe_execution import execute_trade_intent
+        from services.portfolio_client import PortfolioClient
 
-        conn = get_conn(args.get("tracker_db_path", "tracker.db"))
-        try:
-            return execute_trade_intent(
-                portfolio_id=int(args["portfolio_id"]),
-                intent=intent,
-                conn=conn,
-                credential_alias=config["credential_alias"],
-            )
-        finally:
-            conn.close()
+        return PortfolioClient().submit_trade_intent(
+            portfolio_id=int(args["portfolio_id"]), intent=intent
+        )
 
     return run_agent_krypto_cycle(
         artifact=artifact_payload,
@@ -768,7 +760,7 @@ def _handle_research_loop(args: Mapping[str, Any], config: Mapping[str, Any]) ->
       ACCEPTED/REJECTED, and ``cycle`` is always invoked without a
       TradeIntent/portfolio-id/tracker-db-path, so it can only resolve to
       WAIT with ``execution_result=None``. Nothing here can reach
-      ``services.okx_safe_execution`` or create a TradeIntent.
+      Portfolio Manager or create a TradeIntent.
 
     A failure in any phase raises (fail-closed): the surrounding ``dispatch``
     boundary turns that into one ERROR envelope for the whole run, never a

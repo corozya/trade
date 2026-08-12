@@ -41,7 +41,7 @@ def test_strict_position_read_propagates_unavailability(monkeypatch):
 
     monkeypatch.setattr(main, "_demo_client", lambda: Broken())
     monkeypatch.setattr(
-        "services.okx_trade._resolve_futures_instrument",
+        main, "resolve_futures_instrument",
         lambda *_args: {"instId": "BTC-USD_UM_XPERP"},
     )
     with pytest.raises(RuntimeError, match="network down"):
@@ -63,7 +63,7 @@ def test_okx_positions_does_not_mask_resolve_failure_as_flat(monkeypatch):
             raise RuntimeError("OKX API error (code=51014): Index doesn't exist.")
         return {"instId": f"{base}-USD_UM_XPERP"}
 
-    monkeypatch.setattr("services.okx_trade._resolve_futures_instrument", fake_resolve)
+    monkeypatch.setattr(main, "resolve_futures_instrument", fake_resolve)
     result = main.okx_positions()
     assert result["LTC"] == {"unavailable": "OKX API error (code=51014): Index doesn't exist."}
     assert result["BTC"] is None  # genuinely flat bases still report None
@@ -81,19 +81,19 @@ def test_reduce_uses_safe_execution_and_rounds_down(monkeypatch):
     captured = {}
     monkeypatch.setattr(main, "_demo_client", lambda: _Client())
     monkeypatch.setattr(
-        "services.okx_trade._resolve_futures_instrument",
+        main, "resolve_futures_instrument",
         lambda *_args: {
             "instId": "BTC-USD_UM_XPERP", "ctVal": Decimal("1"),
             "lotSz": Decimal("1"), "minSz": Decimal("1"),
         },
     )
-    monkeypatch.setattr("services.db.get_conn", lambda: _Conn())
+    class Client:
+        def submit_trade_intent(self, portfolio_id, intent):
+            captured.update(intent)
+            captured["portfolio_id"] = portfolio_id
+            return {"ok": True}
 
-    def execute(**kwargs):
-        captured.update(kwargs["intent"])
-        return {"ok": True}
-
-    monkeypatch.setattr("services.okx_safe_execution.execute_trade_intent", execute)
+    monkeypatch.setattr(main, "PortfolioClient", Client)
     result = main._safe_trade_intent(
         "BTC", _decision(), "round-1", {"side": "long", "qty": 10.0}
     )

@@ -52,7 +52,7 @@ from dotenv import load_dotenv
 load_dotenv(REPO_ROOT / ".env")
 
 from services.okx_client import OkxClient, OkxCredentialsError, OkxError
-from services.okx_trade import ALLOWED_OKX_FUTURES_BASES, _resolve_futures_inst_id
+from services.okx_market import ALLOWED_OKX_FUTURES_BASES, resolve_futures_inst_id
 
 DATA_DIR = BACKEND_ROOT / "data" / "crypto_market"
 
@@ -129,7 +129,7 @@ def main() -> int:
     try:
         for symbol in SYMBOLS:
             try:
-                inst_id = _resolve_futures_inst_id(symbol, client)
+                inst_id = resolve_futures_inst_id(symbol, client)
                 payload = fetch_symbol(client, inst_id)
             except OkxCredentialsError as exc:
                 _fail(symbol, str(exc))
