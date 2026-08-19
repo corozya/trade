@@ -101,7 +101,7 @@ def resolve_credentials(alias: str) -> OkxCredentials:
     if missing:
         raise OkxCredentialsError(
             f"Brak wymaganych zmiennych środowiskowych dla aliasu '{alias}': "
-            f"{', '.join(missing)}. Ustaw je w .env (root repo BOT)."
+            f"{', '.join(missing)}. Ustaw je w .env w katalogu projektu."
         )
 
     return OkxCredentials(
@@ -419,7 +419,7 @@ class OkxClient:
             path += f"&after={after}"
         if before:
             path += f"&before={before}"
-        return self._get(path)
+        return self._get(path, authenticated=False)
 
     def get_orderbook(self, inst_id: str, sz: int = 20) -> Any:
         """Order book (GET /api/v5/market/books) — best bid/ask + głębokość.
@@ -457,7 +457,7 @@ class OkxClient:
             path += f"&after={after}"
         if before:
             path += f"&before={before}"
-        return self._get(path)
+        return self._get(path, authenticated=False)
 
     def get_open_interest(self, inst_id: Optional[str] = None, inst_type: str = "SWAP") -> Any:
         """Open Interest — poziom bieżący (GET /api/v5/public/open-interest),
@@ -546,7 +546,7 @@ class OkxClient:
             path += f"&after={after}"
         if before:
             path += f"&before={before}"
-        return self._get(path)
+        return self._get(path, authenticated=False)
 
     def get_long_short_account_ratio(self, ccy: str, period: str = "5m") -> Any:
         """Stosunek liczby kont long/short (GET /api/v5/rubik/stat/contracts/long-short-account-ratio),

@@ -164,8 +164,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--repo-root",
         default=None,
-        help="Root to resolve the default extra-DB paths against. Defaults to four "
-        "levels above this script (scripts/ -> backend/ -> portfolio-tracker/ -> BOT/).",
+        help="Root to resolve the default extra-DB paths against. Defaults to the "
+        "Crypto-Agent-Platform repository root.",
     )
     parser.add_argument(
         "--extra-db",
@@ -190,9 +190,10 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = (
         Path(args.repo_root) if args.repo_root else Path(__file__).resolve().parents[2]
     )
-    runtime_root = Path(
-        os.environ.get("CRYPTO_RUNTIME_ROOT", repo_root / "data" / "runtime")
-    ).expanduser()
+    runtime_root = Path(os.environ.get("CRYPTO_RUNTIME_ROOT", "data/runtime")).expanduser()
+    if not runtime_root.is_absolute():
+        runtime_root = repo_root / runtime_root
+    runtime_root = runtime_root.resolve()
     extra_db_paths = [runtime_root / rel for rel in _DEFAULT_EXTRA_DB_RUNTIME_PATHS]
     extra_db_paths += [Path(p) for p in args.extra_db]
 

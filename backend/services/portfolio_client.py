@@ -14,7 +14,7 @@ class PortfolioUnavailable(RuntimeError):
 class PortfolioClient:
     def __init__(self, base_url: str | None = None, timeout: float = 30.0):
         self.base_url = (base_url or os.environ.get(
-            "PORTFOLIO_API_URL", "http://127.0.0.1:8420/api/v1"
+            "PORTFOLIO_API_URL", "http://127.0.0.1:8422/api/v1"
         )).rstrip("/")
         self.timeout = timeout
         api_key = os.environ.get("PORTFOLIO_API_KEY", "").strip()

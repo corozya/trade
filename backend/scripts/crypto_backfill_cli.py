@@ -70,8 +70,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 
-# Same convention as main.py: .env lives at repo root (BOT/.env), three
-# levels above this script (scripts/ -> backend/ -> portfolio-tracker/ -> BOT/).
+# Same convention as main.py: .env lives at the Crypto-Agent-Platform root.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from services.crypto_backfill import (

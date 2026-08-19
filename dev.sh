@@ -2,8 +2,8 @@
 # Crypto Dashboard — start/stop backend+frontend, otwórz stronę, uruchom backfill.
 #
 # Bez argumentów: interaktywne menu.
-# Z argumentem: bezpośrednie wywołanie subkomendy (skryptowanie/CI), z katalogu crypto-dashboard/:
-#   ./dev.sh start     — uruchamia backend (8421) + frontend (5174) w tle
+# Z argumentem: bezpośrednie wywołanie subkomendy (skryptowanie/CI), z katalogu projektu:
+#   ./dev.sh start     — uruchamia backend (8423) + frontend (5175) w tle
 #   ./dev.sh stop      — zatrzymuje oba procesy
 #   ./dev.sh restart   — stop + start
 #   ./dev.sh status    — czy działają + health
@@ -16,6 +16,11 @@
 #   ./dev.sh backfill-oi --full --timeframe 1d --symbol BTC-USDT-SWAP
 #                      — uruchamia crypto_backfill_open_interest.py (#164, osobny
 #                        skrypt: jeden --symbol na wywołanie, timeframe 1d/5m/1h)
+#   ./dev.sh backfill-indicators --incremental --indicator rsi --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 15m,1h
+#                      — uruchamia crypto_backfill_indicators.py (rsi/macd/stochastic/
+#                        atr/risk_indicator/support_resistance); czysta transformacja
+#                        z już zbackfillowanego ohlcv (bez wywołań OKX) — wymaga
+#                        uprzedniego: ./dev.sh backfill --data-kind ohlcv
 #   ./dev.sh autotrader-start   — uruchamia agenta BTC Demo (Agent-BTC-Autonomiczny)
 #   ./dev.sh autotrader-stop    — zatrzymuje nowe rundy (istniejąca pozycja zostaje)
 #   ./dev.sh autotrader-status  — pełny stan: ostatnia decyzja, wynik, next_run_at
@@ -33,12 +38,18 @@ FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 
 VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
 BACKEND_DIR="$SCRIPT_DIR/backend"
-LAKE_ROOT="${CRYPTO_LAKE_ROOT:-$SCRIPT_DIR/data/lake}"
-RUNTIME_ROOT="${CRYPTO_RUNTIME_ROOT:-$SCRIPT_DIR/data/runtime}"
-OKX_ALIAS="${OKX_AGENT_KRYPTO_ALIAS:-demo_main_full}"
+resolve_project_path() {
+  local configured="$1"
+  if [[ "$configured" = /* ]]; then
+    printf '%s\n' "$configured"
+  else
+    printf '%s/%s\n' "$SCRIPT_DIR" "${configured#./}"
+  fi
+}
 
-FREQTRADE_DIR="$SCRIPT_DIR/.."
-FREQTRADE_UI_URL="http://127.0.0.1:8080"
+LAKE_ROOT="$(resolve_project_path "${CRYPTO_LAKE_ROOT:-data/lake}")"
+RUNTIME_ROOT="$(resolve_project_path "${CRYPTO_RUNTIME_ROOT:-data/runtime}")"
+OKX_ALIAS="${OKX_AGENT_KRYPTO_ALIAS:-demo_main_full}"
 
 RUN_DIR="$SCRIPT_DIR/.run"
 mkdir -p "$RUN_DIR"
@@ -242,6 +253,16 @@ backfill_open_interest() {
   )
 }
 
+backfill_indicators() {
+  echo "uruchamiam backfill indicators: $*"
+  echo "(lake-root=$LAKE_ROOT — nadpisz przez CRYPTO_LAKE_ROOT)"
+  (
+    cd "$BACKEND_DIR"
+    "$VENV_PYTHON" scripts/crypto_backfill_indicators.py \
+      --lake-root "$LAKE_ROOT" "$@"
+  )
+}
+
 select_backfill_symbols() {
   BACKFILL_SYMBOL_SCOPE=""
   BACKFILL_SELECTED_SYMBOL=""
@@ -419,45 +440,88 @@ backfill_menu() {
   backfill "${args[@]}"
 }
 
-freqtrade_start() {
-  echo "startuję kontener freqtrade..."
-  (cd "$FREQTRADE_DIR" && docker compose up -d)
-}
+backfill_indicators_menu() {
+  echo
+  echo "--- Backfill wskaźników: czysta transformacja z lokalnego ohlcv (bez OKX) ---"
 
-freqtrade_stop() {
-  echo "zatrzymuję kontener freqtrade..."
-  (cd "$FREQTRADE_DIR" && docker compose stop)
-}
-
-freqtrade_status() {
-  (cd "$FREQTRADE_DIR" && docker compose ps freqtrade)
-}
-
-freqtrade_ui() {
-  if ! (cd "$FREQTRADE_DIR" && docker compose ps freqtrade --status running -q) | grep -q .; then
-    freqtrade_start
+  if ! select_backfill_symbols; then
+    echo "anulowano backfill wskaźników"
+    return 0
   fi
-  if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "$FREQTRADE_UI_URL" >/dev/null 2>&1 &
-  elif command -v open >/dev/null 2>&1; then
-    open "$FREQTRADE_UI_URL"
+
+  local scope_label
+  local -a symbol_args=()
+  if [[ "$BACKFILL_SYMBOL_SCOPE" == "one" && -n "$BACKFILL_SELECTED_SYMBOL" ]]; then
+    scope_label="jedna para: $BACKFILL_SELECTED_SYMBOL"
+    symbol_args=("--symbols" "$BACKFILL_SELECTED_SYMBOL")
+  elif [[ "$BACKFILL_SYMBOL_SCOPE" == "all" ]]; then
+    scope_label="wszystkie zapisane pary"
   else
-    echo "otwórz ręcznie: $FREQTRADE_UI_URL"
+    echo "niejednoznaczny zakres par; anulowano backfill wskaźników" >&2
+    return 0
   fi
-}
 
-freqtrade_download_data() {
-  echo "pobieram dane OHLC freqtrade (OKX): $*"
-  (
-    cd "$FREQTRADE_DIR"
-    docker run --rm \
-      -v "$FREQTRADE_DIR/config:/freqtrade/user_data/config" \
-      -v "$FREQTRADE_DIR/config/strategies:/freqtrade/user_data/strategies" \
-      -v "$FREQTRADE_DIR/data:/freqtrade/user_data/data" \
-      freqtrade_custom download-data \
-      --config /freqtrade/user_data/config/config.json \
-      "$@"
-  )
+  local all_indicators=(rsi macd stochastic atr risk_indicator support_resistance wszystkie)
+  echo "Wskaźnik:"
+  select indicator_choice in "${all_indicators[@]}"; do
+    [[ -n "${indicator_choice:-}" ]] && break
+    echo "nieprawidłowy wybór, spróbuj ponownie"
+  done
+
+  # support_resistance zawsze robi pełny recompute niezależnie od flagi trybu
+  # (różnica --full/--incremental wpływa tylko na to, czy wynik jest mergowany
+  # do poprzedniego datasetu, nie na sam algorytm obliczeniowy — kod w
+  # _backfill_one_pair: run_support_resistance_backfill zawsze po całej historii ohlcv).
+  local mode_flag
+  if [[ "$indicator_choice" == "support_resistance" ]]; then
+    echo
+    echo "UWAGA: support_resistance zawsze przelicza pełną historię ohlcv niezależnie od trybu."
+    echo "Tryb (wpływa tylko na wersjonowanie datasetu):"
+  else
+    echo "Tryb:"
+  fi
+  select mode_label in "--full (pełna historia od zera)" "--incremental (dociągnij tylko nowe)"; do
+    case "$REPLY" in
+      1) mode_flag="--full"; break ;;
+      2) mode_flag="--incremental"; break ;;
+      *) echo "nieprawidłowy wybór, spróbuj ponownie" ;;
+    esac
+  done
+
+  read -rp "Timeframe'y (comma-separated, np. 15m,1h,4h; puste = wszystkie domyślne): " timeframes_input
+
+  local -a timeframe_args=()
+  [[ -n "$timeframes_input" ]] && timeframe_args=("--timeframes" "$timeframes_input")
+
+  if [[ "$indicator_choice" == "wszystkie" ]]; then
+    echo
+    echo "Uruchamiam po kolei: rsi, macd, stochastic, atr, risk_indicator, support_resistance"
+    echo "Zakres: $scope_label | tryb: $mode_flag${timeframes_input:+ | timeframes: $timeframes_input}"
+    read -rp "Potwierdź [T/n]: " confirm
+    if [[ "$confirm" =~ ^[Nn]$ ]]; then
+      echo "anulowano"
+      return 0
+    fi
+    local ind
+    for ind in rsi macd stochastic atr risk_indicator support_resistance; do
+      echo
+      echo "=== $ind ==="
+      backfill_indicators "$mode_flag" --indicator "$ind" "${symbol_args[@]}" "${timeframe_args[@]}"
+    done
+    return 0
+  fi
+
+  local -a args=("$mode_flag" "--indicator" "$indicator_choice" "${symbol_args[@]}" "${timeframe_args[@]}")
+
+  echo
+  echo "Uruchamiam: crypto_backfill_indicators.py ${args[*]} --lake-root $LAKE_ROOT"
+  echo "Zakres: $scope_label"
+  read -rp "Potwierdź [T/n]: " confirm
+  if [[ "$confirm" =~ ^[Nn]$ ]]; then
+    echo "anulowano"
+    return 0
+  fi
+  backfill_indicators "${args[@]}"
 }
 
 interactive_menu() {
@@ -477,11 +541,7 @@ interactive_menu() {
     echo "9) autotrader-stop    — zatrzymaj nowe rundy agenta"
     echo "10) autotrader-status — pełny stan agenta (decyzja/wynik/next_run_at)"
     echo "11) rounds            — podgląd dziennika rund (Ctrl+C aby wyjść)"
-    echo "12) freqtrade-start   — uruchom kontener freqtrade"
-    echo "13) freqtrade-stop    — zatrzymaj kontener freqtrade"
-    echo "14) freqtrade-status  — stan kontenera freqtrade"
-    echo "15) freqtrade-ui      — otwórz FreqUI w przeglądarce"
-    echo "16) freqtrade-data    — pobierz dane OHLC (download-data)"
+    echo "12) backfill-indicators — przelicz wskaźniki (RSI/MACD/Stochastic/ATR/risk/S-R) z lokalnego ohlcv"
     echo "0) wyjście"
     read -rp "> " choice
     case "$choice" in
@@ -496,15 +556,7 @@ interactive_menu() {
       9) autotrader_stop ;;
       10) autotrader_status ;;
       11) rounds ;;
-      12) freqtrade_start ;;
-      13) freqtrade_stop ;;
-      14) freqtrade_status ;;
-      15) freqtrade_ui ;;
-      16)
-        read -rp "Argumenty download-data (np. --pairs BTC/USDT:USDT ETH/USDT:USDT --timeframes 5m --timerange 20250811-20260811 --trading-mode futures): " ft_args
-        # shellcheck disable=SC2086
-        freqtrade_download_data $ft_args
-        ;;
+      12) backfill_indicators_menu ;;
       0) exit 0 ;;
       *) echo "nieprawidłowy wybór" ;;
     esac
@@ -524,21 +576,18 @@ case "${1:-}" in
   logs)    logs ;;
   backfill) shift; backfill "$@" ;;
   backfill-oi) shift; backfill_open_interest "$@" ;;
+  backfill-indicators) shift; backfill_indicators "$@" ;;
   autotrader-start)  autotrader_start ;;
   autotrader-stop)   autotrader_stop ;;
   autotrader-status) autotrader_status ;;
   rounds)  rounds ;;
-  freqtrade-start)  freqtrade_start ;;
-  freqtrade-stop)   freqtrade_stop ;;
-  freqtrade-status) freqtrade_status ;;
-  freqtrade-ui)     freqtrade_ui ;;
-  freqtrade-data)   shift; freqtrade_download_data "$@" ;;
   menu)    interactive_menu ;;
   *)
-    echo "Użycie: $0 {start|stop|restart|status|open|logs|backfill <args>|backfill-oi <args>|autotrader-start|autotrader-stop|autotrader-status|rounds|freqtrade-start|freqtrade-stop|freqtrade-status|freqtrade-ui|freqtrade-data <args>|menu}" >&2
+    echo "Użycie: $0 {start|stop|restart|status|open|logs|backfill <args>|backfill-oi <args>|backfill-indicators <args>|autotrader-start|autotrader-stop|autotrader-status|rounds|menu}" >&2
     echo "Bez argumentów: interaktywne menu." >&2
     echo "Przykład backfillu: $0 backfill --full --data-kind ohlcv --symbols WLD-USD_UM_XPERP-310613" >&2
     echo "Przykład OI: $0 backfill-oi --full --timeframe 1d --symbol BTC-USDT-SWAP" >&2
+    echo "Przykład indicators: $0 backfill-indicators --incremental --indicator rsi --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 15m,1h" >&2
     exit 1
     ;;
 esac

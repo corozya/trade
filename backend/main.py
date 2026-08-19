@@ -17,7 +17,7 @@ A per-(data_kind, symbol, timeframe) debounce (_REFRESH_DEBOUNCE_SECONDS)
 skips the subprocess call (~2-4s) when it already ran recently — the
 frontend's own 15s auto-refresh would otherwise pay that cost on every tick.
 
-Run: uvicorn main:app --reload --port 8421
+Run: uvicorn main:app --reload --port 8423
 """
 from __future__ import annotations
 
@@ -100,12 +100,16 @@ from autotrader import (  # noqa: E402
 # of funds. User decision 2026-08-07.
 _CRYPTO_DASHBOARD_PORTFOLIO_ID = 17
 
-LAKE_ROOT = Path(
-    os.environ.get("CRYPTO_LAKE_ROOT", PROJECT_ROOT / "data" / "lake")
-).expanduser().resolve()
-RUNTIME_ROOT = Path(
-    os.environ.get("CRYPTO_RUNTIME_ROOT", PROJECT_ROOT / "data" / "runtime")
-).expanduser().resolve()
+def _project_storage_path(env_name: str, default_relative: str) -> Path:
+    """Resolve relative .env storage paths against this repository."""
+    configured = Path(os.environ.get(env_name, default_relative)).expanduser()
+    if not configured.is_absolute():
+        configured = PROJECT_ROOT / configured
+    return configured.resolve()
+
+
+LAKE_ROOT = _project_storage_path("CRYPTO_LAKE_ROOT", "data/lake")
+RUNTIME_ROOT = _project_storage_path("CRYPTO_RUNTIME_ROOT", "data/runtime")
 REGISTRY_PATH = LAKE_ROOT / "raw" / "latest.json"
 OKX_ALIAS = os.environ.get("OKX_AGENT_KRYPTO_ALIAS", "demo_main_full")
 
@@ -1250,7 +1254,9 @@ def candlestick_patterns_endpoint(symbol: str, timeframe: str, limit: int = 200)
 
 
 @app.get("/api/support_resistance")
-def support_resistance_endpoint(symbol: str, timeframe: str, limit: int = 4000) -> list[dict[str, Any]]:
+def support_resistance_endpoint(
+    symbol: str, timeframe: str, limit: int = 4000, near: int = 3
+) -> dict[str, Any]:
     """#233: fractal pivot support/resistance zones — 1:1 port of TV/sr.pine
     (ChartPrime, "Support and Resistance (High Volume Boxes)") to Python, see
     crypto-dashboard/backend/sr_levels.py module docstring for the full
@@ -1266,11 +1272,37 @@ def support_resistance_endpoint(symbol: str, timeframe: str, limit: int = 4000) 
     created far in the past but never touched recently can still fall out of
     a low `limit`, raise it if an expected level is missing.
 
-    Returns `[{price_top, price_bottom, type: support|resistance, status:
-    holding|broken|flipped, volume, touch_count, created_at,
-    last_touched_at}]`, sorted by `price_top` descending (highest zone
-    first, matching how a trader reads a price ladder top-down)."""
-    from sr_levels import cluster_levels, latest_level_states  # crypto-dashboard/backend/sr_levels.py
+    `zones` — UNCHANGED from #233: `[{price_top, price_bottom, type:
+    support|resistance, status: holding|broken|flipped, volume, touch_count,
+    created_at, last_touched_at}]`, sorted by `price_top` descending (highest
+    zone first, matching how a trader reads a price ladder top-down).
+
+    Decision-ready extras (analyst brief 2026-08-16), added ALONGSIDE `zones`
+    without altering it:
+      * ``reference_price`` — close of the LAST CLOSED candle of the SAME
+        symbol+timeframe (``ohlcv`` data_kind's last row; closed-only lake, so
+        no look-ahead — same source /api/bollinger, /api/ema compute against),
+        with its ``source``/``candle_time``/``timeframe`` for auditability.
+        ``None`` (and no position block) only if that ohlcv series is missing.
+      * ``price_position`` — where price sits relative to the zone map
+        (between_zones / inside_support_zone / inside_resistance_zone /
+        above_all_zones / below_all_zones), with a ``zone_index`` into `zones`.
+      * ``nearest_resistances`` / ``nearest_supports`` — the `near` (default 3,
+        per side) closest zones above/below price, each as a compact
+        {zone_index, distance_abs, distance_pct} REFERENCE into `zones` (no
+        duplicated zone objects — keeps the extras <5% of the `zones` payload).
+        One side is empty when price is above/below all zones — not an error.
+
+    `near` = closest zones PER SIDE (0 skips the position block entirely and
+    returns only `reference_price` + `zones`). See sr_levels.price_position_summary."""
+    from sr_levels import (  # crypto-dashboard/backend/sr_levels.py
+        cluster_levels,
+        latest_level_states,
+        price_position_summary,
+    )
+
+    if near < 0:
+        raise HTTPException(status_code=422, detail=f"near must be >= 0 (got {near})")
 
     rows = _read_series("support_resistance", symbol, timeframe, limit)
     events = [
@@ -1292,7 +1324,7 @@ def support_resistance_endpoint(symbol: str, timeframe: str, limit: int = 4000) 
     latest = latest_level_states(events)
     clustered = cluster_levels(latest)
     clustered.sort(key=lambda lvl: lvl["price_top"], reverse=True)
-    return [
+    zones = [
         {
             "price_top": lvl["price_top"],
             "price_bottom": lvl["price_bottom"],
@@ -1305,6 +1337,30 @@ def support_resistance_endpoint(symbol: str, timeframe: str, limit: int = 4000) 
         }
         for lvl in clustered
     ]
+
+    # reference_price = last CLOSED candle's close of the same symbol+timeframe
+    # (the ohlcv lake series is closed-only, so [-1] is the last closed bar —
+    # identical no-look-ahead source /api/bollinger and /api/ema read against).
+    reference_price: dict[str, Any] | None = None
+    try:
+        ohlcv_rows = _read_series("ohlcv", symbol, timeframe, 1)
+    except HTTPException as exc:
+        if exc.status_code != 404:
+            raise
+        ohlcv_rows = []
+    if ohlcv_rows:
+        last = ohlcv_rows[-1]
+        reference_price = {
+            "value": last["close"],
+            "source": "ohlcv_close",
+            "candle_time": last["observed_at"],
+            "timeframe": timeframe,
+        }
+
+    response: dict[str, Any] = {"zones": zones, "reference_price": reference_price}
+    if reference_price is not None and near > 0:
+        response.update(price_position_summary(zones, reference_price["value"], near=near))
+    return response
 
 
 _SYNTHETIC_CANDLES_MAX_LOOKBACK_BARS = 4000  # enough base bars to reach any reasonable anchor_time/offset_minutes
@@ -3451,16 +3507,12 @@ def market_movers(limit: int = 20) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 _AUTOTRADER_DIR = RUNTIME_ROOT / "autotrader-btc-demo"
-_AUTOTRADER_SPEC_URI = (
-    "obsidian://open?vault=OBSIDIAN_BAZA_WIEDZY&file="
-    "Projekty%2FBOT%2FAgent-BTC-Autonomiczny"
-)
 _SHARED_EXECUTION_LOCK = RUNTIME_ROOT / "locks" / "agent_krypto_cycle.lock"
 
 
 @contextmanager
 def _demo_execution_lease():
-    """Share the account-level lock with the legacy agent-krypto cron."""
+    """Serialize OKX demo execution across local agent processes."""
     _SHARED_EXECUTION_LOCK.parent.mkdir(parents=True, exist_ok=True)
     with _SHARED_EXECUTION_LOCK.open("a+") as handle:
         try:
@@ -3631,8 +3683,6 @@ def _autotrader_context(base: str) -> dict[str, Any]:
         "active_trade_task_id": mandate.trade_task_id,
         "active_strategy_version": mandate.active_strategy_version,
         "previous_decision_and_lessons": mandate.last_decision,
-        "tools_catalog": "Projekty/BOT/Narzedzia-Projektu.md",
-        "strategy_spec": _AUTOTRADER_SPEC_URI,
     }
 
 
@@ -3784,8 +3834,8 @@ def _autotrader_execute(base: str, decision: AutotraderDecision, round_id: str) 
 # NOT sourced from ALLOWED_OKX_FUTURES_BASES/available() automatically, so a
 # new symbol never enters live-ish (OKX Demo) execution without an explicit
 # review. SOL and LTC added 2026-08-09 (#240): SOL was previously excluded
-# (only dated futures, not perpetuals, on demo_main_full — see
-# Projekty/BOT/Agent-BTC-Autonomiczny.md) but was re-verified live and now
+# (only dated futures, not perpetuals, on demo_main_full) but was re-verified
+# live and now
 # resolves to a working X-Perp perpetual (OKX added the instrument between
 # 2026-08-07 and 2026-08-09); LTC is a brand-new addition, verified live the
 # same way. WLD remains intentionally excluded — it has no futures instrument
