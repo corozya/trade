@@ -35,6 +35,19 @@ ohlcv`` first (already done for all ``CryptoDataLake.SYMBOLS`` x TIMEFRAMES
 as of #228). If the ohlcv key is missing this exits with a clear error
 rather than silently producing nothing.
 
+## Default timeframes for support_resistance
+
+When ``--timeframes``/``--timeframe`` are omitted, all other indicators use
+the full ``CryptoDataLake.TIMEFRAMES`` (1m, 5m, 15m, 1h, 4h, 1d).
+``support_resistance`` is an exception: its default is narrowed to
+``_SUPPORT_RESISTANCE_DEFAULT_TIMEFRAMES`` (1h, 4h, 1d).
+
+Rationale: support_resistance always does a full recompute of the entire ohlcv
+history (no bounded incremental window — see ``_SUPPORT_RESISTANCE_DATA_KIND``
+comment below), so running it on 1m/5m/15m is both very slow and analytically
+low-value (S/R levels on sub-hourly bars are noise, not durable structure).
+Pass ``--timeframes=1m,5m,...`` explicitly to override.
+
 Usage:
   crypto_backfill_indicators.py --full --indicator rsi \
       --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
@@ -42,6 +55,12 @@ Usage:
       --symbol BTC-USDT-SWAP --timeframe 15m --lake-root /app/data/lake
   crypto_backfill_indicators.py --full --indicator rsi \
       --symbols BTC-USDT-SWAP,ETH-USDT-SWAP --timeframes 15m,1h --lake-root /app/data/lake
+  crypto_backfill_indicators.py --incremental --indicator support_resistance \
+      --lake-root /app/data/lake
+      # ^ defaults to 1h,4h,1d only (not all TIMEFRAMES — see above)
+  crypto_backfill_indicators.py --incremental --indicator support_resistance \
+      --timeframes 1m,5m --lake-root /app/data/lake
+      # ^ explicit --timeframes overrides the narrow default
 """
 
 from __future__ import annotations
@@ -60,8 +79,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 
-# Same convention as the other backfill scripts: .env lives at repo root
-# (BOT/.env). Not strictly needed here (no OKX creds used), kept for
+# Same convention as the other backfill scripts: .env lives at the project
+# root. Not strictly needed here (no OKX creds used), kept for
 # consistency in case a future indicator needs config from it.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
@@ -89,6 +108,13 @@ from services.crypto_market_ingestion import CryptoMarketIngestor, FixtureMarket
 # stateful levels), so it's dispatched separately from INDICATOR_SPECS below
 # rather than forced into that registry's per-bar transform contract.
 _SUPPORT_RESISTANCE_DATA_KIND = "support_resistance"
+
+# Narrowed default timeframe set for support_resistance when --timeframes is
+# not provided explicitly.  Rationale: S/R always recomputes the full ohlcv
+# history, making 1m/5m/15m runs very slow AND analytically low-value (levels
+# on sub-hourly bars are noise, not durable structure).  Users who really need
+# lower TFs can still force them with an explicit --timeframes flag.
+_SUPPORT_RESISTANCE_DEFAULT_TIMEFRAMES = ("1h", "4h", "1d")
 
 
 def _registry_path(lake_root: Path) -> Path:
@@ -286,7 +312,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     symbols = _parse_csv_list(args.symbols) or ([args.symbol] if args.symbol else list(SYMBOLS))
-    timeframes = _parse_csv_list(args.timeframes) or ([args.timeframe] if args.timeframe else list(TIMEFRAMES))
+    # When --timeframes/--timeframe is omitted, support_resistance uses a
+    # narrower default (1h/4h/1d) instead of the full TIMEFRAMES set.
+    # Every explicit --timeframes value (even if it includes 1m) takes
+    # priority — we only apply the narrowing when the user said nothing.
+    _explicit_timeframes = _parse_csv_list(args.timeframes) or ([args.timeframe] if args.timeframe else None)
+    if _explicit_timeframes is not None:
+        timeframes = _explicit_timeframes
+    elif args.indicator == _SUPPORT_RESISTANCE_DATA_KIND:
+        timeframes = list(_SUPPORT_RESISTANCE_DEFAULT_TIMEFRAMES)
+    else:
+        timeframes = list(TIMEFRAMES)
 
     lake_root = Path(args.lake_root)
     lake = CryptoDataLake(lake_root)

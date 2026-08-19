@@ -108,12 +108,17 @@ from services.paper_execution import derive_point_in_time_decisions, record_rese
 # — those catalogs live at <repo_root>/config/, not under backend/.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_DATA_ROOT = str(
-    Path(os.environ.get("CRYPTO_LAKE_ROOT", _REPO_ROOT / "data" / "lake")).expanduser()
-)
-DEFAULT_RUNTIME_ROOT = Path(
-    os.environ.get("CRYPTO_RUNTIME_ROOT", _REPO_ROOT / "data" / "runtime")
-).expanduser()
+
+def _project_storage_path(env_name: str, default_relative: str) -> Path:
+    """Resolve configured storage inside the project unless explicitly absolute."""
+    configured = Path(os.environ.get(env_name, default_relative)).expanduser()
+    if not configured.is_absolute():
+        configured = _REPO_ROOT / configured
+    return configured.resolve()
+
+
+DEFAULT_DATA_ROOT = str(_project_storage_path("CRYPTO_LAKE_ROOT", "data/lake"))
+DEFAULT_RUNTIME_ROOT = _project_storage_path("CRYPTO_RUNTIME_ROOT", "data/runtime")
 DEFAULT_RUN_DB = str(DEFAULT_RUNTIME_ROOT / "runs" / "orchestrator_runs.db")
 DEFAULT_ARTIFACT_REGISTRY_DB = str(DEFAULT_RUNTIME_ROOT / "artifacts" / "registry.db")
 DEFAULT_CONFIG_PATH = "config/agent_krypto_orchestrator_config.json"

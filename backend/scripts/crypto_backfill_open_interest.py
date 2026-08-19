@@ -13,9 +13,8 @@ dispatcher later is a thin wiring change, not a rewrite.
 ## Endpoint
 
 ``GET /api/v5/rubik/stat/contracts/open-interest-volume`` via
-``OkxClient.get_open_interest_history()`` (services/okx_client.py). Verified
-facts (#161 research, Obsidian
-``Projekty/BOT/OKX-Dane-Historyczne-OI-Funding-Research.md``), NOT guessed:
+``OkxClient.get_open_interest_history()`` (services/okx_client.py). The
+following facts were verified during #161 research rather than guessed:
 
 - The documented ``contract-open-interest-history`` endpoint is DEAD (always
   returns ``{"data":[]}``); the correct endpoint is
@@ -89,8 +88,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 
-# Same convention as main.py: .env lives at repo root (BOT/.env), three
-# levels above this script (scripts/ -> backend/ -> portfolio-tracker/ -> BOT/).
+# Same convention as main.py: .env lives at the Crypto-Agent-Platform root.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from services.crypto_backfill import (

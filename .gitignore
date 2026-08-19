@@ -16,3 +16,19 @@ scripts/agent_krypto_decisions.jsonl
 *.sqlite-*
 *.db
 *.db-*
+
+# Agent runtime infrastructure (SAURON onboarding, per-machine, not app code)
+.claude/agents/
+.claude/hooks/
+.claude/skills/
+.claude/settings.json
+.codex/
+.cursor/
+.sauron/
+.sdd/
+.mcp*.json
+AGENTS.md
+CLAUDE.md
+CODEX.md
+project.config.json
+scripts/ats-*

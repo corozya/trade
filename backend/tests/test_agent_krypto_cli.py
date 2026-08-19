@@ -21,6 +21,18 @@ def test_default_storage_paths_stay_inside_split_repository():
     assert "research/agent-krypto" not in agent_krypto_cli.DEFAULT_RUN_DB
 
 
+def test_relative_storage_paths_are_anchored_to_split_repository(monkeypatch):
+    monkeypatch.setenv("CRYPTO_LAKE_ROOT", "./custom/lake")
+    monkeypatch.setenv("CRYPTO_RUNTIME_ROOT", "custom/runtime")
+
+    assert agent_krypto_cli._project_storage_path(
+        "CRYPTO_LAKE_ROOT", "data/lake"
+    ) == agent_krypto_cli._REPO_ROOT / "custom" / "lake"
+    assert agent_krypto_cli._project_storage_path(
+        "CRYPTO_RUNTIME_ROOT", "data/runtime"
+    ) == agent_krypto_cli._REPO_ROOT / "custom" / "runtime"
+
+
 def _write_config(path, **overrides):
     payload = {
         "config_version": "v1",

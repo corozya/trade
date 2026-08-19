@@ -37,6 +37,86 @@ def _ok_json(data):
     return httpx.Response(200, json={"code": "0", "msg": "", "data": data})
 
 
+@pytest.mark.parametrize(
+    ("history", "expected_path"),
+    [
+        (False, "/api/v5/market/candles"),
+        (True, "/api/v5/market/history-candles"),
+    ],
+)
+def test_get_candles_is_public_and_does_not_resolve_credentials(
+    monkeypatch, history, expected_path
+):
+    def fail_resolve_credentials(alias):
+        raise AssertionError(f"credentials resolver called for public candles endpoint: {alias}")
+
+    monkeypatch.setattr(ok, "resolve_credentials", fail_resolve_credentials)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == expected_path
+        assert not any(name.lower().startswith("ok-access-") for name in request.headers)
+        return _ok_json([["1", "2", "3", "4", "5", "6"]])
+
+    client = _make_client(handler, max_read_attempts=1, retry_backoff_seconds=0)
+
+    payload = client.get_candles("BTC-USDT-SWAP", history=history)
+
+    assert payload["data"] == [["1", "2", "3", "4", "5", "6"]]
+
+
+def test_get_funding_rate_history_is_public_and_does_not_resolve_credentials(monkeypatch):
+    def fail_resolve_credentials(alias):
+        raise AssertionError(
+            f"credentials resolver called for public funding history endpoint: {alias}"
+        )
+
+    monkeypatch.setattr(ok, "resolve_credentials", fail_resolve_credentials)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v5/public/funding-rate-history"
+        assert request.url.params["instId"] == "BTC-USDT-SWAP"
+        assert request.url.params["after"] == "123"
+        assert request.url.params["before"] == "456"
+        assert not any(name.lower().startswith("ok-access-") for name in request.headers)
+        return _ok_json([{"fundingRate": "0.0001"}])
+
+    client = _make_client(handler, max_read_attempts=1, retry_backoff_seconds=0)
+
+    payload = client.get_funding_rate_history(
+        "BTC-USDT-SWAP", limit=50, after="123", before="456"
+    )
+
+    assert payload["data"] == [{"fundingRate": "0.0001"}]
+
+
+def test_get_taker_volume_history_is_public_and_does_not_resolve_credentials(monkeypatch):
+    def fail_resolve_credentials(alias):
+        raise AssertionError(
+            f"credentials resolver called for public taker volume history endpoint: {alias}"
+        )
+
+    monkeypatch.setattr(ok, "resolve_credentials", fail_resolve_credentials)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/v5/rubik/stat/taker-volume"
+        assert request.url.params["ccy"] == "BTC"
+        assert request.url.params["instType"] == "CONTRACTS"
+        assert request.url.params["period"] == "1H"
+        assert request.url.params["limit"] == "50"
+        assert request.url.params["after"] == "123"
+        assert request.url.params["before"] == "456"
+        assert not any(name.lower().startswith("ok-access-") for name in request.headers)
+        return _ok_json([["1", "2", "3"]])
+
+    client = _make_client(handler, max_read_attempts=1, retry_backoff_seconds=0)
+
+    payload = client.get_taker_volume_history(
+        "BTC", period="1H", limit=50, after="123", before="456"
+    )
+
+    assert payload["data"] == [["1", "2", "3"]]
+
+
 def test_fetch_symbol_all_sections_success(monkeypatch):
     _set_creds(monkeypatch)
 
@@ -126,6 +206,11 @@ def test_main_missing_credentials_returns_1(monkeypatch, tmp_path):
     monkeypatch.setattr(fcmd, "DATA_DIR", tmp_path)
     monkeypatch.setattr(fcmd, "SYMBOLS", ["BTC", "ETH"])
     monkeypatch.setattr(sys, "argv", ["fetch_crypto_market_data.py", "nonexistent_alias_xyz"])
+
+    def fail_resolve_futures_inst_id(symbol, client):
+        raise ok.OkxCredentialsError(f"missing credentials for {symbol}")
+
+    monkeypatch.setattr(fcmd, "resolve_futures_inst_id", fail_resolve_futures_inst_id)
 
     exit_code = fcmd.main()
     assert exit_code == 1

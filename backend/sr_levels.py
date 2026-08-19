@@ -371,8 +371,122 @@ def cluster_levels(
     return out
 
 
+def price_position_summary(
+    zones: list[dict[str, Any]],
+    reference_price: float,
+    *,
+    near: int = 3,
+) -> dict[str, Any]:
+    """Locate `reference_price` against an ALREADY-CLUSTERED, price_top-DESC
+    sorted `zones` list (exactly the list /api/support_resistance returns) and
+    return the decision-ready extras: where price sits relative to the zone
+    map, and the `near` closest zones on each side with pre-computed distances.
+
+    `zones` must be the SAME list object the endpoint returns, in the SAME
+    order (sorted by ``price_top`` descending) — every reference below is a
+    plain integer index into it (``zone_index``), never a duplicated zone
+    object, so this summary stays tiny regardless of how many zones exist.
+
+    Returned shape::
+
+        {
+          "price_position": {"status": <str>, "zone_index": <int|None>},
+          "nearest_resistances": [
+            {"zone_index": int, "distance_abs": float, "distance_pct": float}, ...
+          ],
+          "nearest_supports": [
+            {"zone_index": int, "distance_abs": float, "distance_pct": float}, ...
+          ],
+        }
+
+    `price_position.status` is one of:
+      * ``inside_support_zone`` / ``inside_resistance_zone`` — price is WITHIN
+        a zone's [price_bottom, price_top] band (actively testing it);
+        ``zone_index`` points at that zone. If price sits inside more than one
+        overlapping zone the tightest-band one wins (clustering makes this
+        rare, but keep it deterministic).
+      * ``above_all_zones`` / ``below_all_zones`` — price is beyond every known
+        zone on that side; the corresponding ``nearest_*`` list on the far side
+        is empty (NOT an error, see #233 follow-up brief).
+      * ``between_zones`` — price sits in a gap between zones with zones on both
+        sides; ``zone_index`` is None.
+
+    ``nearest_resistances`` are zones strictly ABOVE price (a zone's whole band
+    is above price, or price is below the zone), sorted nearest-first, capped at
+    `near`. ``nearest_supports`` are zones strictly BELOW price, same rule.
+    A zone price is currently INSIDE is reported via ``price_position`` and is
+    excluded from both nearest lists (it is neither above nor below).
+
+    ``distance_abs`` is ``edge - reference_price`` where `edge` is the NEAR edge
+    of the zone (a resistance's ``price_bottom``, a support's ``price_top``) —
+    positive for resistances (above), negative for supports (below), matching
+    the follow-up brief's sign convention. ``distance_pct`` is that same signed
+    gap as a percentage of ``reference_price`` (``distance_abs / price * 100``),
+    rounded to 4 dp.
+    """
+    inside: list[tuple[int, dict[str, Any]]] = []
+    for idx, z in enumerate(zones):
+        if z["price_bottom"] <= reference_price <= z["price_top"]:
+            inside.append((idx, z))
+
+    inside_index: int | None = None
+    inside_type: str | None = None
+    if inside:
+        # tightest band wins — most specific level price is actually testing
+        idx, z = min(inside, key=lambda pair: pair[1]["price_top"] - pair[1]["price_bottom"])
+        inside_index = idx
+        inside_type = z["type"]
+
+    def _dist(edge: float) -> tuple[float, float]:
+        abs_d = round(edge - reference_price, 8)
+        pct = round((edge - reference_price) / reference_price * 100, 4) if reference_price else 0.0
+        return abs_d, pct
+
+    resistances: list[dict[str, Any]] = []  # zones above price (near edge = price_bottom)
+    supports: list[dict[str, Any]] = []     # zones below price (near edge = price_top)
+    for idx, z in enumerate(zones):
+        if idx == inside_index:
+            continue
+        if z["price_bottom"] > reference_price:
+            abs_d, pct = _dist(z["price_bottom"])
+            resistances.append({"zone_index": idx, "distance_abs": abs_d, "distance_pct": pct})
+        elif z["price_top"] < reference_price:
+            abs_d, pct = _dist(z["price_top"])
+            supports.append({"zone_index": idx, "distance_abs": abs_d, "distance_pct": pct})
+
+    resistances.sort(key=lambda r: r["distance_abs"])            # smallest positive gap first
+    supports.sort(key=lambda s: s["distance_abs"], reverse=True)  # smallest magnitude (closest to 0) first
+    nearest_resistances = resistances[:near]
+    nearest_supports = supports[:near]
+
+    if inside_index is not None:
+        status = "inside_resistance_zone" if inside_type == "resistance" else "inside_support_zone"
+        position_index: int | None = inside_index
+    elif not supports and resistances:
+        status = "below_all_zones"
+        position_index = None
+    elif not resistances and supports:
+        status = "above_all_zones"
+        position_index = None
+    elif not supports and not resistances:
+        # no zones at all on either side (empty map) — treat as between_zones
+        # with no anchor rather than inventing an above/below claim.
+        status = "between_zones"
+        position_index = None
+    else:
+        status = "between_zones"
+        position_index = None
+
+    return {
+        "price_position": {"status": status, "zone_index": position_index},
+        "nearest_resistances": nearest_resistances,
+        "nearest_supports": nearest_supports,
+    }
+
+
 __all__ = [
     "compute_level_events",
     "latest_level_states",
     "cluster_levels",
+    "price_position_summary",
 ]
